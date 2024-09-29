@@ -53,7 +53,7 @@ impl Node {
     }
 
     pub async fn pool_transactions(&mut self, topic: &[&str], user_base: Vec<User>) -> KafkaResult<Vec<Transaction>> {
-
+        
         let consumer: StreamConsumer = ClientConfig::new()
             .set("group.id", &self.id)
             .set("bootstrap.servers", "localhost:9092")
@@ -86,7 +86,8 @@ impl Node {
                                 && user_base[index].balance > (transaction.amount + transaction.fee) {
                                     pool.push(transaction);
                                 } else { continue; }
-                                if self.staging.len() == 256 { println!("{}",self.staging.len()); stop_flag = true; } else { continue; }
+
+                                if pool.len() == 256 { println!("{:?}",pool.len()); stop_flag = true; } else { continue; }
                             }
                             Err(e) => {
                                 eprintln!("Failed to deserialize message: {}", e);
@@ -94,12 +95,12 @@ impl Node {
                         }
                     }
                     else { println!("No payload found in message"); }
-
                     consumer.commit_message(&message, CommitMode::Async).expect("Can not commit message");
                 }
             }
 
-            if stop_flag || pool.len() > 256 {
+            if stop_flag {
+                println!("Exiting loop...");
                 break;
             }
         }
@@ -114,6 +115,10 @@ impl Node {
             self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
 
         let message = NodeMessage { msg_type: MessageType::Request(block.serialize_block()), sender_id: self.id.clone(), seq_num: 1 };
+        self.broadcast_kafka("PrePrepare", message);
+
+        let message = NodeMessage { msg_type: MessageType::Request(block.serialize_block()), sender_id: self.id.clone(), seq_num: 1 };
+
         let primary = self.primary.clone();
         let id = self.id.clone();
         let mut is_primary = false;

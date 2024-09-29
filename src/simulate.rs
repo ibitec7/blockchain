@@ -1,5 +1,8 @@
 use bls_signatures::{PrivateKey, PublicKey};
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use std::vec::Vec;
+use std::sync::MutexGuard;
 use std::time::{ Duration, UNIX_EPOCH };
 use tokio::time;
 use rand::{distributions::{Alphanumeric, Uniform}, Rng};
@@ -34,10 +37,13 @@ impl User {
         tx.sign_transaction(self.private_key);
     }
 
-    pub async fn simulate_transaction(&self, producer: &FutureProducer, user_base: Vec<User>, kafka_topic: String) {
+    pub async fn simulate_transaction (&self, producer: &FutureProducer, user_base: Vec<User>, kafka_topic: String) {
         let index = user_base.iter().position(|user| { user.user_id == self.user_id }).unwrap();
-        let mut rng = rand::thread_rng();
         let user_dist: Uniform<usize> = Uniform::new(0, user_base.len());
+        let mut rng = {
+            let rng = rand::thread_rng();
+            StdRng::from_rng(rng).unwrap()
+        };
         let mut to_index = rng.sample(user_dist);
         while index == to_index {
             to_index = rng.sample(user_dist);
@@ -60,6 +66,6 @@ impl User {
 
         producer.send(record, Duration::from_secs(0)).await.unwrap();
 
-        time::sleep(Duration::from_millis(1000)).await;
+        time::sleep(Duration::from_secs(1)).await;
     }
 }
