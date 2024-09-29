@@ -1,6 +1,6 @@
 use std::{ops::{Deref, DerefMut}, time::Duration};
 
-use crate::{block::{Block, BlockChain}, concensus, network::{self, MessageType, Network, NodeMessage}, simulate::User, transaction::Transaction};
+use crate::{block::{Block, BlockChain}, concensus::{self, PoS}, network::{self, MessageType, Network, NodeMessage}, simulate::User, transaction::Transaction};
 use rand::{distributions::Alphanumeric, Rng};
 
 use rdkafka::{consumer::{BaseConsumer, CommitMode, Consumer, StreamConsumer}, error::KafkaResult, message, producer::{BaseProducer, BaseRecord, FutureProducer, FutureRecord, Producer}, ClientConfig};
@@ -37,7 +37,9 @@ impl Node {
             .map(char::from)
             .collect();
 
-        Node { id: id, block_chain: chain, stake: 0.0, state: NodeState::Idle, staging: vec![], validators: vec![], primary: vec![] }
+        let mut node = Node { id: id, block_chain: chain, stake: 0.0, state: NodeState::Idle, staging: vec![], validators: vec![], primary: vec![] };
+        node.propose_stake();
+        node
     }
 
     fn serialize_node(&self) -> String{
@@ -48,10 +50,6 @@ impl Node {
     fn deserialize_node(json_str: &str) -> Self{
         let node = serde_json::from_str(json_str).expect("Failed to parse JSON");
         node
-    }
-
-    fn commit(&mut self, transactions: Vec<Transaction>) {
-        self.block_chain.add_block(transactions);
     }
 
     pub async fn pool_transactions(&mut self, topic: &[&str], user_base: Vec<User>) -> KafkaResult<Vec<Transaction>> {
@@ -86,7 +84,7 @@ impl Node {
                                 let index = user_base.iter().position(|x|  x.user_id == transaction.from).unwrap();
                                 if transaction.verify_transaction(user_base[index].public_key) == true
                                 && user_base[index].balance > (transaction.amount + transaction.fee) {
-                                    self.staging.push(transaction);
+                                    pool.push(transaction);
                                 } else { continue; }
                                 if self.staging.len() == 256 { println!("{}",self.staging.len()); stop_flag = true; } else { continue; }
                             }
@@ -106,7 +104,10 @@ impl Node {
             }
         }
 
-        self.commit(pool.clone());
+        self.staging = pool.clone();
+        println!("prev_hash: {:?}", hex::encode(
+            self.block_chain.chain[self.block_chain.chain.len() - 1].hash()));
+        println!("index: {:?}", self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
         let block = Block::new(pool.clone(), 
             hex::encode(
             self.block_chain.chain[self.block_chain.chain.len() - 1].hash()), 

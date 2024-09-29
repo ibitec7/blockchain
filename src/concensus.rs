@@ -4,7 +4,7 @@ use crate::node::Node;
 pub trait PoS {
     fn propose_stake(&mut self);
 
-    fn select_validators(nodes: Vec<Node>, num_validators: usize) -> Vec<String>;
+    fn select_validators(&mut self, nodes: Vec<Node>);
 }
 
 pub trait Pbft {
@@ -24,10 +24,11 @@ impl PoS for Node {
         self.stake = rng.sample(dist);
     }
 
-    fn select_validators(nodes: Vec<Node>, num_validators: usize) -> Vec<String> {
+    fn select_validators(&mut self ,nodes: Vec<Node>) {
+        let num_validators: usize = nodes.len() / 4;
         let total_stake: f64 = nodes.iter().map(|node| node.stake).sum();
         let mut rng = rand::thread_rng();
-        let mut validators = Vec::new();
+        let mut validator_nodes = Vec::new();
 
         for _ in 0..num_validators {
             let mut stake_total = 0.0;
@@ -35,11 +36,18 @@ impl PoS for Node {
             for node in nodes.iter() {
                 stake_total += node.stake;
                 if stake_total >= target {
-                    validators.push(node.id.clone());
+                    validator_nodes.push(node.clone());
                     break;
                 }
             }
         }
-        validators
+        validator_nodes.sort_by(|a, b| a.stake.total_cmp(&b.stake).reverse());
+        let leaders: Vec<String> = validator_nodes[0..2].to_vec()
+            .iter().map(|a| a.id.clone()).collect();
+        let validators: Vec<String> = validator_nodes[0..num_validators].to_vec().iter()
+            .map(|a| a.id.clone()).collect();
+
+        self.validators = validators;
+        self.primary = leaders;
     }
 }

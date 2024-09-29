@@ -1,4 +1,7 @@
+use std::thread;
+
 use block::BlockChain;
+use concensus::PoS;
 use node::Node;
 use rand::{distributions::Uniform, Rng};
 use rdkafka::{producer::FutureProducer, ClientConfig};
@@ -38,14 +41,29 @@ async fn main(){
     let topics: Vec<&str> = vec!["Transactions"];
     let mut node1 = Node::new(chain.clone());
     let mut node2 = Node::new(chain.clone());
+    let mut node_network: Vec<Node> = vec![];
+    for _ in 0..20 {
+        let mut node = Node::new(chain.clone());
+        node.propose_stake();
+        node_network.push(node.clone());
+    }
+    for mut node in node_network.clone() {
+        node.select_validators(node_network.clone());
+    }
+
     let mut user_base: Vec<User> = Vec::new();
     for _ in 0..100 {
         user_base.push(User::new());
     }
-    
-    let (_, _, _) = tokio::join!(simulate_tx(user_base.clone()), 
-        listen(&mut node1, topics.as_slice(), user_base.clone()),
-        listen(&mut node2, topics.as_slice(), user_base.clone()));
 
+    let handle1 = thread::spawn(simulate_tx(user_base.clone()));
+
+    println!("Going ahead!");
+
+    let node_handles = vec![]
+
+    for mut node in node_network {
+        node_handles.push(thread::spawn(listen(&mut node, topics.as_slice(), user_base.clone())));
+    }
     
 }

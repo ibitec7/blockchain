@@ -17,7 +17,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(data: Vec<Transaction>, prev_hash: String, idx: u32) -> Self {
+    pub fn new(data: Vec<Transaction>, hash: String, idx: u32) -> Self {
         let root = hex::encode(merkle_tree::generate_root(data));
 
         Block {
@@ -25,7 +25,7 @@ impl Block {
             timestamp: std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
             merkle_root: root,
             nonce: 0,
-            prev_hash
+            prev_hash: hash
         }
 
     }

@@ -157,7 +157,7 @@ pub fn generate_root(data: Vec<Transaction>) -> Vec<u8> {
         }
         current_level = next_level.clone();
     }
-
+    println!("Merkle root: {:?}",current_level);
     current_level.first().expect("Failed to extract the Merkle Root").deref().to_vec()
 }
 
