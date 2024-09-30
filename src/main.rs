@@ -1,11 +1,14 @@
 use std::ops::Deref;
 use std::sync::Arc;
+use futures_util::lock::Mutex;
+use node::Miner;
 use tokio::sync::Barrier;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rand::{distributions::Uniform, Rng};
 use rdkafka::{producer::FutureProducer, ClientConfig};
 use simulate::User;
+use lazy_static::lazy_static;
 use crate::block::BlockChain;
 use crate::node::Node;
 use crate::concensus::PoS;
@@ -35,9 +38,9 @@ pub async fn simulate_tx(user_base: Arc<Vec<User>>) {
     }
 }
 
-pub async fn listen(node: &mut Node, topics: &[&str], users: Arc<Vec<User>>) {
+pub async fn listen(node: &mut Node, topics: &[&str], users: Arc<Vec<User>>, miner: &Miner) {
     for _ in 0..4 {
-        node.pool_transactions(topics, users.deref().clone()).await;
+        node.pool_transactions(topics, users.deref().clone(), miner).await;
     }
 }
 
@@ -55,6 +58,15 @@ async fn main() {
     }
 
     let network_clone = node_network.clone();
+
+    let mut miners_init = vec![];
+    for node in node_network {
+        miners_init.push(Miner::new(&node))
+    }
+
+    lazy_static!(
+        static ref miners = miners_init.clone();
+    )
 
     let (validator_nodes, primary_nodes) = concensus::select_validators(network_clone);
 
@@ -87,10 +99,12 @@ async fn main() {
         let barrier_clone = Arc::clone(&barrier);
         let user_base_clone = Arc::clone(&user_base);
         let topics_clone = topics.clone();
+        let miners_ref = miners.as_ref()
+
         
         let handle = tokio::spawn(async move {
             barrier_clone.wait().await;
-            listen(&mut node, &topics_clone, user_base_clone).await;
+            listen(&mut node, &topics_clone, user_base_clone, miner).await;
         });
 
         handles.push(handle);

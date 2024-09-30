@@ -1,6 +1,6 @@
 use rdkafka::{consumer::{BaseConsumer, CommitMode, Consumer, StreamConsumer}, error::KafkaResult, message, producer::{BaseProducer, BaseRecord, FutureProducer, FutureRecord, Producer}, ClientConfig};
 use rdkafka::message::Message;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use futures_util::stream::StreamExt;
 use serde_json::{to_string, from_str};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,14 @@ pub struct NodeMessage {
 pub trait Network {
     fn broadcast_kafka(&self, topic: &str, message: NodeMessage);
     
-    fn consume_kafka(topic: &str, group_id: &str) -> Vec<String>;
+    fn consume_kafka(topic: &str) -> Vec<String>;
+}
+
+impl NodeMessage {
+    pub fn deserialize_message(msg_json: String) -> NodeMessage {
+        let node_msg: NodeMessage = serde_json::from_str(&msg_json).expect("Failed to deserialize the message");
+        node_msg
+    }
 }
 
 impl Network for Node {
@@ -46,28 +53,38 @@ impl Network for Node {
         producer.flush(Duration::from_secs(1)).expect("Failed to flush producer");
     }
 
-    fn consume_kafka(topic: &str, group_id: &str) -> Vec<String>{
+    fn consume_kafka(topic: &str) -> Vec<String>{
         let consumer: BaseConsumer = ClientConfig::new()
             .set("bootstrap.server", "localhost:9092")
-            .set("group.id", group_id)
             .create()
             .expect("Failed to make consumer");
 
         consumer.subscribe(&[topic]).expect("Subscription Error");
 
+        let timeout = Duration::from_secs(10);
         let mut message_pool = Vec::new();
+        let mut last_received_time = None;
 
         println!("Listening for messages in topic: {}", topic);
 
         loop {
-            match consumer.poll(Duration::from_secs(1)) {
+            match consumer.poll(Duration::from_secs(5)) {
                 Some(Ok(message)) => {
                     if let Some(payload) = message.payload() {
                         let msg = String::from(std::str::from_utf8(payload).expect("Failed to deserialize message"));
                         message_pool.push(msg);
+                        last_received_time = Some(Instant::now());
                     }
                 }
                 _ => continue,
+            }
+            match last_received_time {
+                Some(time) => {
+                    if time.elapsed() > timeout {
+                        break;
+                    }
+                }
+                None => { continue; }
             }
         }
         message_pool

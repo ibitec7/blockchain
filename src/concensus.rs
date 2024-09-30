@@ -1,4 +1,6 @@
+use bls_signatures::PrivateKey;
 use rand::Rng;
+use crate::node::Miner;
 use crate::{block::Block, network::Network, node::Node, transaction::Transaction};
 use crate::network::{NodeMessage, MessageType};
 
@@ -9,9 +11,9 @@ pub trait PoS {
 }
 
 pub trait Pbft {
-    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>){}
+    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>, miner: &Miner){}
 
-    fn prepare_phase(){}
+    fn prepare_phase(&self){}
 
     fn commit_phase(){}
 
@@ -32,7 +34,7 @@ impl PoS for Node {
 }
 
 impl Pbft for Node {
-    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>) {
+    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>, miner: &Miner) {
         self.staging = pool.clone();
         println!("prev_hash: {:?}", hex::encode(
             self.block_chain.chain[self.block_chain.chain.len() - 1].hash()));
@@ -42,7 +44,9 @@ impl Pbft for Node {
             self.block_chain.chain[self.block_chain.chain.len() - 1].hash()), 
             self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
 
-        let message = NodeMessage { msg_type: MessageType::Request(block.serialize_block()), sender_id: self.id.clone(), seq_num: 1 };
+        let signed_block = miner.sign_message(&block);
+
+        let message = NodeMessage { msg_type: MessageType::Request(signed_block), sender_id: self.id.clone(), seq_num: 1 };
 
         let primary = self.primary.clone();
         let id = self.id.clone();
@@ -57,12 +61,18 @@ impl Pbft for Node {
         }
     }
 
-    fn prepare_phase() {
+    fn prepare_phase(&self) {
+        let primary_msg = Node::consume_kafka("Preprepare");
+        let mut messages: Vec<NodeMessage> = vec![];
         
+        for msg in primary_msg {
+            messages.push(NodeMessage::deserialize_message(msg));
+        }
+
     }
 }
 
-pub(in crate::concensus) fn select_validators(nodes: Vec<Node>) -> (Vec<String>, Vec<String>){
+pub fn select_validators(nodes: Vec<Node>) -> (Vec<String>, Vec<String>){
     let num_validators: usize = nodes.len() / 4;
     let total_stake: f64 = nodes.iter().map(|node| node.stake).sum();
     let mut rng = rand::thread_rng();
