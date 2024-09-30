@@ -7,7 +7,7 @@ use serde_json::{to_string, from_str};
 use crate::transaction::Transaction;
 use crate::merkle_tree;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct Block {
     pub index: u32,
     pub timestamp: u64,
@@ -63,7 +63,7 @@ pub struct Validator{
     pub stake: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct BlockChain {
     pub chain: Vec<Block>,
 }

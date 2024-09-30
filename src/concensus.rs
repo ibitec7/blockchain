@@ -1,5 +1,6 @@
 use rand::Rng;
-use crate::node::Node;
+use crate::{block::Block, network::Network, node::Node, transaction::Transaction};
+use crate::network::{NodeMessage, MessageType};
 
 pub trait PoS {
     fn propose_stake(&mut self);
@@ -8,7 +9,7 @@ pub trait PoS {
 }
 
 pub trait Pbft {
-    fn preprepare_phase(validators: &mut Vec<Node>){}
+    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>){}
 
     fn prepare_phase(){}
 
@@ -41,13 +42,43 @@ impl PoS for Node {
                 }
             }
         }
+        println!("{:?}", validator_nodes);
         validator_nodes.sort_by(|a, b| a.stake.total_cmp(&b.stake).reverse());
+        println!("{:?}", validator_nodes);
         let leaders: Vec<String> = validator_nodes[0..2].to_vec()
             .iter().map(|a| a.id.clone()).collect();
         let validators: Vec<String> = validator_nodes[0..num_validators].to_vec().iter()
             .map(|a| a.id.clone()).collect();
 
+        println!("{:?}", leaders);
         self.validators = validators;
         self.primary = leaders;
+    }
+}
+
+impl Pbft for Node {
+    fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>) {
+        self.staging = pool.clone();
+        println!("prev_hash: {:?}", hex::encode(
+            self.block_chain.chain[self.block_chain.chain.len() - 1].hash()));
+        println!("index: {:?}", self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
+        let block = Block::new(pool, 
+            hex::encode(
+            self.block_chain.chain[self.block_chain.chain.len() - 1].hash()), 
+            self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
+
+        let message = NodeMessage { msg_type: MessageType::Request(block.serialize_block()), sender_id: self.id.clone(), seq_num: 1 };
+
+        let primary = self.primary.clone();
+        let id = self.id.clone();
+        let mut is_primary = false;
+        for leader in primary {
+            if leader == id {
+                is_primary = true
+            } else { continue; }
+        }
+        if is_primary {
+            self.broadcast_kafka("PrePrepare", message);
+        }
     }
 }

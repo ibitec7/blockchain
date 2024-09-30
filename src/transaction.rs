@@ -4,7 +4,7 @@ use bls_signatures::{PrivateKey, PublicKey, Serialize as OtherSerialize, Signatu
 use serde_json::{to_string, from_str};
 use rand::thread_rng;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct Transaction {
     pub id: String,
     pub from: String,

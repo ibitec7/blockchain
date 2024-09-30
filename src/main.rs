@@ -37,7 +37,7 @@ pub async fn simulate_tx(user_base: Arc<Vec<User>>) {
 
 pub async fn listen(node: &mut Node, topics: &[&str], users: Arc<Vec<User>>) {
     for _ in 0..4 {
-        node.pool_transactions(topics, users.deref().clone()).await.unwrap();
+        node.pool_transactions(topics, users.deref().clone()).await;
     }
 }
 
@@ -54,10 +54,15 @@ async fn main() {
         node_network.push(node.clone());
     }
 
-    // Select validators for each node
-    for mut node in node_network.clone() {
-        node.select_validators(node_network.clone());
-    }
+    let network_clone = node_network.clone();
+
+    let node_network: Vec<Node> = node_network.iter_mut().map(|node| 
+        {
+            node.select_validators(network_clone.clone());
+            node.to_owned()
+        }).collect();
+
+    drop(network_clone);
 
     let mut user_base = vec![];
     for _ in 0..100 {
@@ -67,7 +72,6 @@ async fn main() {
     let user_base = Arc::new(user_base);
     let barrier = Arc::new(Barrier::new(node_network.len() + 1));
 
-    let barrier_clone = Arc::clone(&barrier);
     let user_base_clone = Arc::clone(&user_base);
 
     println!("Making simulate handle");
