@@ -5,7 +5,7 @@ use crate::network::{NodeMessage, MessageType};
 pub trait PoS {
     fn propose_stake(&mut self);
 
-    fn select_validators(&mut self, nodes: Vec<Node>);
+    fn set_validators(&mut self, validators: Vec<String>, primary: Vec<String>);
 }
 
 pub trait Pbft {
@@ -25,34 +25,9 @@ impl PoS for Node {
         self.stake = rng.sample(dist);
     }
 
-    fn select_validators(&mut self ,nodes: Vec<Node>) {
-        let num_validators: usize = nodes.len() / 4;
-        let total_stake: f64 = nodes.iter().map(|node| node.stake).sum();
-        let mut rng = rand::thread_rng();
-        let mut validator_nodes = Vec::new();
-
-        for _ in 0..num_validators {
-            let mut stake_total = 0.0;
-            let target: f64 = rng.gen_range(0.0..total_stake);
-            for node in nodes.iter() {
-                stake_total += node.stake;
-                if stake_total >= target {
-                    validator_nodes.push(node.clone());
-                    break;
-                }
-            }
-        }
-        println!("{:?}", validator_nodes);
-        validator_nodes.sort_by(|a, b| a.stake.total_cmp(&b.stake).reverse());
-        println!("{:?}", validator_nodes);
-        let leaders: Vec<String> = validator_nodes[0..2].to_vec()
-            .iter().map(|a| a.id.clone()).collect();
-        let validators: Vec<String> = validator_nodes[0..num_validators].to_vec().iter()
-            .map(|a| a.id.clone()).collect();
-
-        println!("{:?}", leaders);
+    fn set_validators(&mut self, validators: Vec<String>, primary: Vec<String>) {
         self.validators = validators;
-        self.primary = leaders;
+        self.primary = primary;
     }
 }
 
@@ -81,4 +56,37 @@ impl Pbft for Node {
             self.broadcast_kafka("PrePrepare", message);
         }
     }
+
+    fn prepare_phase() {
+        
+    }
+}
+
+pub(in crate::concensus) fn select_validators(nodes: Vec<Node>) -> (Vec<String>, Vec<String>){
+    let num_validators: usize = nodes.len() / 4;
+    let total_stake: f64 = nodes.iter().map(|node| node.stake).sum();
+    let mut rng = rand::thread_rng();
+    let mut validator_nodes = Vec::new();
+
+    for _ in 0..num_validators {
+        let mut stake_total = 0.0;
+        let target: f64 = rng.gen_range(0.0..total_stake);
+        for node in nodes.iter() {
+            stake_total += node.stake;
+            if stake_total >= target {
+                validator_nodes.push(node.clone());
+                break;
+            }
+        }
+    }
+    println!("{:?}", validator_nodes);
+    validator_nodes.sort_by(|a, b| a.stake.total_cmp(&b.stake));
+    println!("{:?}", validator_nodes);
+    let leaders: Vec<String> = validator_nodes[0..3].to_vec()
+        .iter().map(|a| a.id.clone()).collect();
+    let validators: Vec<String> = validator_nodes[0..num_validators].to_vec().iter()
+        .map(|a| a.id.clone()).collect();
+
+    println!("{:?}", leaders);
+    (validators, leaders)
 }

@@ -56,13 +56,13 @@ async fn main() {
 
     let network_clone = node_network.clone();
 
+    let (validator_nodes, primary_nodes) = concensus::select_validators(network_clone);
+
     let node_network: Vec<Node> = node_network.iter_mut().map(|node| 
         {
-            node.select_validators(network_clone.clone());
+            node.set_validators(validator_nodes.clone(), primary_nodes.clone());
             node.to_owned()
         }).collect();
-
-    drop(network_clone);
 
     let mut user_base = vec![];
     for _ in 0..100 {
