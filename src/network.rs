@@ -1,11 +1,9 @@
-use rdkafka::{consumer::{BaseConsumer, CommitMode, Consumer, StreamConsumer}, error::KafkaResult, message, producer::{BaseProducer, BaseRecord, FutureProducer, FutureRecord, Producer}, ClientConfig};
+use rdkafka::{consumer::{BaseConsumer, Consumer}, producer::{BaseProducer, BaseRecord, Producer}, ClientConfig};
 use rdkafka::message::Message;
 use std::time::{Duration, Instant};
-use futures_util::stream::StreamExt;
-use serde_json::{to_string, from_str};
 use serde::{Deserialize, Serialize};
 
-use crate::node::Node;
+use crate::{block::Block, node::{Miner, Node}};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MessageType {
@@ -30,6 +28,19 @@ pub trait Network {
 }
 
 impl NodeMessage {
+    pub fn new(miner: Miner, block: Block, msg_type: String) -> Self {
+       let hash = miner.sign_message(&block);
+       let msg = match msg_type.to_uppercase().as_str() {
+                        "REQUEST" => { MessageType::Request(hash) },
+                        "PREPREPARE" => {MessageType::PrePrepare(hash)},
+                        "PREPARE" => {MessageType::Prepare(hash)},
+                        "COMMIT" => {MessageType::Commit(hash)},
+                        "REPLY" => {MessageType::Reply(hash)},
+                        _ => panic!("Invalid message type")
+                };
+        NodeMessage { msg_type: msg, sender_id: miner.node_id, seq_num: 0 }
+    }
+
     pub fn deserialize_message(msg_json: String) -> NodeMessage {
         let node_msg: NodeMessage = serde_json::from_str(&msg_json).expect("Failed to deserialize the message");
         node_msg

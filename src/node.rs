@@ -28,6 +28,7 @@ pub struct Node {
     pub primary: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct Miner {
     pub node_id: String,
     private_key: PrivateKey,

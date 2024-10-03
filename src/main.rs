@@ -59,14 +59,10 @@ async fn main() {
 
     let network_clone = node_network.clone();
 
-    let mut miners_init = vec![];
-    for node in node_network {
-        miners_init.push(Miner::new(&node))
+    let mut miners = vec![];
+    for node in &node_network {
+        miners.push(Miner::new(node))
     }
-
-    lazy_static!(
-        static ref miners = miners_init.clone();
-    )
 
     let (validator_nodes, primary_nodes) = concensus::select_validators(network_clone);
 
@@ -99,12 +95,13 @@ async fn main() {
         let barrier_clone = Arc::clone(&barrier);
         let user_base_clone = Arc::clone(&user_base);
         let topics_clone = topics.clone();
-        let miners_ref = miners.as_ref()
+        let miner = miners.iter().find(|miner| miner.node_id == node.id)
+            .expect("Failed to find the miner").clone();
 
         
         let handle = tokio::spawn(async move {
             barrier_clone.wait().await;
-            listen(&mut node, &topics_clone, user_base_clone, miner).await;
+            listen(&mut node, &topics_clone, user_base_clone, &miner).await;
         });
 
         handles.push(handle);

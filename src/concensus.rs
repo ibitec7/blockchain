@@ -1,4 +1,3 @@
-use bls_signatures::PrivateKey;
 use rand::Rng;
 use crate::node::Miner;
 use crate::{block::Block, network::Network, node::Node, transaction::Transaction};
