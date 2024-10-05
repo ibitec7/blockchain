@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{block::Block, node::{Miner, Node}};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, )]
 pub enum MessageType {
     Request(String),
     PrePrepare(String),
@@ -14,9 +14,22 @@ pub enum MessageType {
     Reply(String),
 }
 
+impl MessageType {
+    pub fn unwrap(&self) -> String {
+        match &self {
+            &MessageType::Request(a) => a.to_owned(),
+            &MessageType::PrePrepare(a) => a.to_owned(),
+            &MessageType::Prepare(a) => a.to_owned(),
+            &MessageType::Commit(a) => a.to_owned(),
+            &MessageType::Reply(a) => a.to_owned(), 
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NodeMessage {
     pub msg_type: MessageType,
+    pub signature: String,
     pub sender_id: String,
     pub seq_num: u64
 }
@@ -28,17 +41,17 @@ pub trait Network {
 }
 
 impl NodeMessage {
-    pub fn new(miner: Miner, block: Block, msg_type: String) -> Self {
-       let hash = miner.sign_message(&block);
+    pub fn new(miner: &Miner, block: Block, msg_type: String, idx: u64) -> Self {
+       let sign = miner.sign_message(&block);
        let msg = match msg_type.to_uppercase().as_str() {
-                        "REQUEST" => { MessageType::Request(hash) },
-                        "PREPREPARE" => {MessageType::PrePrepare(hash)},
-                        "PREPARE" => {MessageType::Prepare(hash)},
-                        "COMMIT" => {MessageType::Commit(hash)},
-                        "REPLY" => {MessageType::Reply(hash)},
+                        "REQUEST" => { MessageType::Request(block.serialize_block())},
+                        "PREPREPARE" => {MessageType::PrePrepare(block.serialize_block())},
+                        "PREPARE" => {MessageType::Prepare(block.serialize_block())},
+                        "COMMIT" => {MessageType::Commit(block.serialize_block())},
+                        "REPLY" => {MessageType::Reply(block.serialize_block())},
                         _ => panic!("Invalid message type")
                 };
-        NodeMessage { msg_type: msg, sender_id: miner.node_id, seq_num: 0 }
+        NodeMessage { msg_type: msg, signature: sign, sender_id: miner.node_id.clone(), seq_num: idx }
     }
 
     pub fn deserialize_message(msg_json: String) -> NodeMessage {

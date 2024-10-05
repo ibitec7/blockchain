@@ -13,4 +13,3 @@ hex = "0.4.3"
 futures-util = "0.3.30"
 tokio = { version = "*", features = ["full"] }
 rdkafka = { version = "0.36", features = ["ssl"] }
-lazy_static = "*"

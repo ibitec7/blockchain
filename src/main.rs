@@ -8,7 +8,6 @@ use rand::SeedableRng;
 use rand::{distributions::Uniform, Rng};
 use rdkafka::{producer::FutureProducer, ClientConfig};
 use simulate::User;
-use lazy_static::lazy_static;
 use crate::block::BlockChain;
 use crate::node::Node;
 use crate::concensus::PoS;

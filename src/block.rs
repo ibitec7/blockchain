@@ -9,7 +9,7 @@ use crate::merkle_tree;
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct Block {
-    pub index: u32,
+    pub index: u64,
     pub timestamp: u64,
     pub merkle_root: String,
     pub nonce: u64,
@@ -17,7 +17,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(data: Vec<Transaction>, hash: String, idx: u32) -> Self {
+    pub fn new(data: Vec<Transaction>, hash: String, idx: u64) -> Self {
         let root = hex::encode(merkle_tree::generate_root(data));
 
         Block {

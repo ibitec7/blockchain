@@ -1,3 +1,7 @@
+use std::any::{Any, TypeId};
+
+use bls_signatures::{PublicKey, Serialize};
+use std::collections::HashMap;
 use rand::Rng;
 use crate::node::Miner;
 use crate::{block::Block, network::Network, node::Node, transaction::Transaction};
@@ -12,7 +16,7 @@ pub trait PoS {
 pub trait Pbft {
     fn preprepare_phase<T: Pbft + Network> (&mut self, pool: Vec<Transaction>, miner: &Miner){}
 
-    fn prepare_phase(&self){}
+    fn prepare_phase(&self, pkey_store: HashMap<String, PublicKey>){}
 
     fn commit_phase(){}
 
@@ -43,9 +47,7 @@ impl Pbft for Node {
             self.block_chain.chain[self.block_chain.chain.len() - 1].hash()), 
             self.block_chain.chain[self.block_chain.chain.len() - 1].index + 1);
 
-        let signed_block = miner.sign_message(&block);
-
-        let message = NodeMessage { msg_type: MessageType::Request(signed_block), sender_id: self.id.clone(), seq_num: 1 };
+        let message = NodeMessage::new(miner, block, String::from("Preprepare"), self.msg_idx[0]);
 
         let primary = self.primary.clone();
         let id = self.id.clone();
@@ -60,12 +62,30 @@ impl Pbft for Node {
         }
     }
 
-    fn prepare_phase(&self) {
+    fn prepare_phase(&self, pkey_store: HashMap<String, PublicKey>) {
         let primary_msg = Node::consume_kafka("Preprepare");
         let mut messages: Vec<NodeMessage> = vec![];
         
         for msg in primary_msg {
             messages.push(NodeMessage::deserialize_message(msg));
+        }
+
+        for msg in messages {
+            let is_leader: bool = self.primary.contains(&msg.sender_id);
+            let is_preprepare = match msg.msg_type {
+                MessageType::PrePrepare(_) => true,
+                _ => false
+            };
+            let pkey = pkey_store.get(&msg.sender_id).expect("Sender is not in Key Store");
+            let verify = pkey.verify(bls_signatures::Signature::from_bytes(
+                &hex::decode(msg.signature).unwrap()).unwrap()
+                , hex::decode(msg.msg_type.unwrap()).unwrap());
+            let is_current = self.block_chain.chain.last().unwrap().index == msg.seq_num;
+
+            if is_leader && is_preprepare && is_current && verify {
+                let new_block = Block::deserialize_block(&msg.msg_type.unwrap());
+                
+            }
         }
 
     }

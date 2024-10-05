@@ -5,7 +5,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use rdkafka::{consumer::{CommitMode, Consumer, StreamConsumer}, ClientConfig};
 use rdkafka::message::Message;
 use futures_util::stream::StreamExt;
-use serde_json::to_string;
+// use serde_json::to_string;
 use serde::{Deserialize, Serialize as SerdeSerialize};
 
 #[derive(SerdeSerialize, Deserialize, Clone, std::fmt::Debug)]
@@ -26,6 +26,7 @@ pub struct Node {
     pub staging: Vec<Transaction>,
     pub validators: Vec<String>,
     pub primary: Vec<String>,
+    pub msg_idx: [u64;4]
 }
 
 #[derive(Clone)]
@@ -57,22 +58,23 @@ impl Node {
             .take(8)
             .map(char::from)
             .collect();
+        let indexes: [u64;4] = [1,1,1,1];
 
         let mut node = Node { id: id, block_chain: chain, stake: 0.0, state: NodeState::Idle,
-             staging: vec![], validators: vec![], primary: vec![] };
+             staging: vec![], validators: vec![], primary: vec![], msg_idx: indexes };
         node.propose_stake();
         node
     }
 
-    fn serialize_node(&self) -> String{
-        let json_string = to_string(&self).expect("Failed to parse Node");
-        json_string
-    }
+    // fn serialize_node(&self) -> String{
+    //     let json_string = to_string(&self).expect("Failed to parse Node");
+    //     json_string
+    // }
 
-    fn deserialize_node(json_str: &str) -> Self{
-        let node = serde_json::from_str(json_str).expect("Failed to parse JSON");
-        node
-    }
+    // fn deserialize_node(json_str: &str) -> Self{
+    //     let node = serde_json::from_str(json_str).expect("Failed to parse JSON");
+    //     node
+    // }
 
     pub async fn pool_transactions(&mut self, topic: &[&str], user_base: Vec<User>, miner: &Miner) {
         
@@ -108,6 +110,7 @@ impl Node {
                                 if pool.len() == 256 { 
                                     self.preprepare_phase::<Node>(pool.clone(), &miner);
                                     pool = vec![];
+                                    self.msg_idx[0] += 1;
                                  } else { continue; }
                             }
                             Err(e) => {
