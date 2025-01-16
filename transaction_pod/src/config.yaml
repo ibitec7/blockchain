@@ -1,0 +1,13 @@
+user_thro: 20
+
+user_size: 100
+
+tx_size: 12800
+
+producer:
+  server: "localhost:9092"
+  autocommit: "false"
+  batchsize: "64000"
+  lingerms: "10"
+  compressiontype: "lz4"
+  acks: "all"

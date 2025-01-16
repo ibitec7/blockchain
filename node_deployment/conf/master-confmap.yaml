@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: master-config
+
+data:
+  config.yaml: |
+    consumer:
+        server: "kafka.default.svc.cluster.local:9092"
+        autocommit: "false"
+        autooffset: "earliest"
+        acks: "1"
+
+    producer:
+        server: "kafka.default.svc.cluster.local:9092"
+        autocommit: "false"
+        batchsize: "64000"
+        lingerms: "10"
+        compressiontype: "lz4"
+        acks: "1"
+
+    performance:
+        timeout: 10
+
+    staking:
+        validators: 1

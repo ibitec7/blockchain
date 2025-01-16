@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tx-pod-job
+spec:
+  template:
+    metadata:
+      labels:
+        app: tx-pod
+    spec:
+      containers:
+      - name: tx-container
+        image: ibitec/tx-pod:tx3
+        env:
+        - name: BOOTSTRAP_SERVERS
+          value: kafka.default.svc.cluster.local:9092
+        volumeMounts:
+        - name: tx-config
+          mountPath: /app/src
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+      restartPolicy: Never
+      volumes:
+      - name: tx-config
+        configMap:
+          name: tx-config
+  backoffLimit: 0

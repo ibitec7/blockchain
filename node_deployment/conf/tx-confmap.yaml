@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tx-config
+
+data:
+  config.yaml: |
+    user_thro: 20
+
+    user_size: 100
+
+    tx_size: 12800
+
+    producer:
+        server: "kafka.default.svc.cluster.local:9092"
+        autocommit: "false"
+        batchsize: "64000"
+        lingerms: "10"
+        compressiontype: "lz4"
+        acks: "1"

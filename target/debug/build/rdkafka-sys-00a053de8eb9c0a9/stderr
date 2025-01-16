@@ -1,3 +1,0 @@
-Building and linking librdkafka statically
-Running command: "/home/ibrahim/blockchain/target/debug/build/rdkafka-sys-00a053de8eb9c0a9/out/configure --enable-ssl --disable-gssapi --disable-curl --disable-zstd --disable-lz4-ext" in dir: /home/ibrahim/blockchain/target/debug/build/rdkafka-sys-00a053de8eb9c0a9/out
-Running command: "make libs" in dir: /home/ibrahim/blockchain/target/debug/build/rdkafka-sys-00a053de8eb9c0a9/out

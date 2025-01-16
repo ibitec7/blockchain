@@ -1,0 +1,19 @@
+consumer:
+  server: "localhost:9092"
+  autocommit: "false"
+  autooffset: "earliest"
+  acks: "1"
+
+producer:
+  server: "localhost:9092"
+  autocommit: "false"
+  batchsize: "64000"
+  lingerms: "10"
+  compressiontype: "lz4"
+  acks: "all"
+
+performance:
+  timeout: 10
+
+staking:
+  validators: 1

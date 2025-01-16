@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-scripts
+data:
+  create-topic.sh: |
+    #!/bin/bash
+
+    KAFKA_HOME="/opt/bitnami/kafka"
+    BOOTSTRAP_SERVER="localhost:9092"
+
+    if [ "$#" -lt 1 ]; then
+        echo "Usage: $0 <topic_name1> <topic_name2> ..."
+        exit 1
+    fi
+
+    for TOPIC in "$@"; do
+        echo "Creating topic: $TOPIC"
+        $KAFKA_HOME/bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVER --create --topic "$TOPIC" --partitions 5 --replication-factor 1 --if-not-exists
+        if [ $? -eq 0 ]; then
+            echo "Topic '$TOPIC' created successfully."
+        else
+            echo "Failed to create topic '$TOPIC'."
+        fi
+    done
+
+  delete-topic.sh: |
+    #!/bin/bash
+
+    KAFKA_HOME="/opt/bitnami/kafka"
+
+    TOPICS=$($KAFKA_HOME/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list)
+
+    if [ -z "$TOPICS" ]; then
+        echo "No topics found to delete."
+        exit 0
+    fi
+
+    for TOPIC in $TOPICS; do
+        echo "Deleting topic: $TOPIC"
+        $KAFKA_HOME/bin/kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic "$TOPIC"
+    done
+
+    echo "All topics have been deleted."
