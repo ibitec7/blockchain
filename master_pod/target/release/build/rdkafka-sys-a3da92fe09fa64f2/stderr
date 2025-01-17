@@ -1,4 +1,0 @@
-Building and linking librdkafka statically
-Running command: "cp -a librdkafka/. /home/ibrahim/master_pod/target/release/build/rdkafka-sys-a3da92fe09fa64f2/out" in dir: .
-Running command: "/home/ibrahim/master_pod/target/release/build/rdkafka-sys-a3da92fe09fa64f2/out/configure --disable-ssl --disable-gssapi --disable-curl --disable-zstd --disable-lz4-ext" in dir: /home/ibrahim/master_pod/target/release/build/rdkafka-sys-a3da92fe09fa64f2/out
-Running command: "make libs" in dir: /home/ibrahim/master_pod/target/release/build/rdkafka-sys-a3da92fe09fa64f2/out

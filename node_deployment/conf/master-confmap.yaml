@@ -23,4 +23,4 @@ data:
         timeout: 10
 
     staking:
-        validators: 1
+        validators: 3
