@@ -1,4 +1,4 @@
-This is a proof-of-concept implementation of the proposed blockchain architecture from the paper "Redefining Hybrid Blockchains: A balanced architecture" by Syed Ibrahim Omer. This is research code and may contain issues and lack certain functionalities.
+This is a proof-of-concept implementation of the proposed blockchain architecture from the paper **Redefining Hybrid Blockchains: A Balanced Architecture** by Syed Ibrahim Omer. This is research code and may contain issues and lack certain functionalities.
 
 **DO NOT USE THIS PROJECT IN A PRODUCTION ENVIRONMENT** 
 
