@@ -1,2 +1,9 @@
-/Cargo.lock
-/target
+.gitignore
+/master_pod/target
+/master_pod/Cargo.lock
+/node_pod/target
+/node_pod/Cargo.lock
+/transaction_pod/target
+/transaction_pod/Cargo.lock
+/wallet_pod/target
+/wallet_pod/Cargo.lock
