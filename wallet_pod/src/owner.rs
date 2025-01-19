@@ -2,6 +2,8 @@ use ring::{pkcs8, rand::{self, SystemRandom}, signature::{self, Ed25519KeyPair, 
 use crate::transaction::Output;
 use std::collections::HashMap;
 
+// Implementation of the owner
+
 pub struct Owner {
     pub pub_key: String,
     rng: SystemRandom,
