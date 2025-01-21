@@ -1,9 +1,11 @@
+use ring::signature;
 use serde::Serialize;
 use serde_json;
+use std::time::{SystemTime, Duration};
 use std::collections::HashMap;
 
 #[derive(Serialize, Debug,Clone)]
-pub struct Output {
+pub struct UTXO {
     pub id: String,
     pub amount: u64,
     pub to: String
@@ -18,19 +20,34 @@ pub struct Script {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct UTXO {
-    pub id: String,             // The unique id of the UTXO
-    pub input: Vec<String>,     // The input UTXOs for this transactions
-    pub output: Vec<Output>,    // The output UTXOs coming from this transactions
+pub struct Transaction {
+    pub id: String,             // The unique id of the Transaction
+    pub timestamp: u64,         // The timestamp of the transaction
+    pub input: Vec<String>,     // The input Transactions for this transactions
+    pub utxo: Vec<UTXO>,        // The UTXO Transactions coming from this transactions
     pub amount: u64,            // The amount??
-    pub owner: Script           // The ownership script that will allow the UTXO to be redeemed
+    pub owner: Script           // The ownership script that will allow the Transaction to be redeemed
 }
 
-impl UTXO {
-    fn new(id: String, amount: u64, input: Vec<String>,
-        output: Vec<Output>, owner: Script) -> Self {
+impl Script {
+    pub fn new(n_keys: u32, min_keys: u32, pub_keys: Vec<String>) -> Script{
 
-        UTXO { id, input, output, amount, owner }
+        Script {
+            n_keys,
+            min_keys,
+            pub_keys,
+            signatures: HashMap::new()
+        }
+
+    }
+}
+
+impl Transaction {
+    pub fn new(id: String, timestamp: u64 , amount: u64, input: Vec<String>,
+        utxo: Vec<UTXO>, owner: Script) -> Self {
+
+        Transaction { id, timestamp, input, utxo, amount, owner }
+
     }
 
     fn serialize(&self) -> String {

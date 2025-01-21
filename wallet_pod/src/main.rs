@@ -1,6 +1,6 @@
 pub mod transaction;
 pub mod ledger;
-pub mod owner;
+pub mod wallet;
 
 fn main() {
     

@@ -10,4 +10,4 @@ ring = "0.17.8"
 hex = "*"
 serde = {version = "*", features = ["derive"]}
 serde_json = "*"
-sha = "*"
+openssl = "*"
