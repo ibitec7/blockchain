@@ -3,10 +3,11 @@ use ring::{pkcs8, rand::{self, SystemRandom}, signature::{self, Ed25519KeyPair, 
 use crate::transaction::{Transaction, Script, UTXO};
 use std::net::UdpSocket;
 use openssl::sha::{self, Sha256};
+use serde::Serialize;
 use std::time::SystemTime;
 use std::collections::HashMap;
 
-// Implementation of the owner
+// Implementation of the owner's wallet
 
 pub struct Wallet {
     pub pub_key: String,
@@ -18,52 +19,56 @@ pub struct Wallet {
     pub ip_store: HashMap<String, String>   // list of public keys and their IP addresses
 }
 
-impl Wallet {
+#[derive(Clone, Serialize)]
+pub struct PubKeys {
+    pub new_pub_key: String,
+    pub old_pub_key: String
+}
 
-    // Create a new wallet with a new ip, udp socket, keypairs etc.
-    fn new() -> Self {
-        let ip_base = String::from("127.0.0.1:");
-        let mut socket: UdpSocket;
-        let final_ip: String;
-
-        for i in 7000..8000 {
-            let ip = ip_base + &String::from(i);
-            let temp_socket = UdpSocket::bind(ip);
-            match temp_socket {
-                Ok(temp) => {
-                    socket = temp;
-                    final_ip = ip;
-                    break;
-                }
-                Err(_) => {continue;}
-            } 
-        }
-
-        let rng = rand::SystemRandom::new();
-        let pkcs8_bytes: pkcs8::Document = 
-            signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
-
-        let pair: Ed25519KeyPair = signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref())
-            .unwrap();
-
-        let pub_key: String = hex::encode(pair.public_key());
-
-        Wallet {
-            pub_key,
-            rng,
-            priv_key: pair,
-            utxos: HashMap::new(),
-            ip: final_ip,
-            socket,
-            ip_store: HashMap::new()
-        }
+impl PubKeys {
+    pub fn new(new_pub_key: String, old_pub_key: String) -> Self {
+        PubKeys { new_pub_key, old_pub_key }
     }
 
-    fn listen_transaction(&self) -> String {
+    pub fn serialize(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+pub trait Transact {
+    fn create_script(n_keys: u32, min_keys: u32, pub_keys: Vec<String>,
+         signatures: HashMap<String, String>) -> Script;
+
+    fn sign_utxo(&mut self, message: String, id: String) -> String;
+
+    fn propose_utxo(&self, inputs: Vec<String>, outputs: Vec<UTXO>, n_keys: u32,
+         min_keys: u32, pub_keys: Vec<String>);
+
+    fn listen_transaction(&self) -> impl std::future::Future<Output = String>;
+}
+
+pub trait Info {
+    fn new() -> Self;
+
+    fn get_balance(&self) -> u64;
+
+    fn add_utxo(&mut self, utxo: UTXO);
+
+    fn remove_utxo(&mut self, id: &String);
+
+    fn reset_key_pair(&mut self);
+
+    fn broadcast_key(&self, old_key: String, pub_key: String);
+}
+
+impl Transact for Wallet {
+
+    // Listen for a new transaction message (this will always be running as a thread)
+    async fn listen_transaction(&self) -> String {
         let mut buffer = [0u8; 4096];
 
         loop {
-            let (amt, src) = self.socket.recv_from(&mut buffer);
+            let (amt, _) = self.socket.recv_from(&mut buffer).expect("Failed to receive message");
             let message: String = String::from_utf8(buffer[..amt].to_vec())
                 .unwrap_or(String::from("<Invalid UTF-8"));
 
@@ -84,9 +89,15 @@ impl Wallet {
 
         let pub_key: String = hex::encode(pair.public_key());
 
-        self.priv_key = pair;
-        self.pub_key = pub_key;
-        self.utxos.remove(&id);
+        self.reset_key_pair();
+
+
+        match self.utxos.remove(&id) {
+            Some(utxo) => {
+                println!("UTXO id {} removed", utxo.id);
+            }
+            None => { println!("UTXO not found");}
+        };
 
         signature
     }
@@ -97,41 +108,128 @@ impl Wallet {
 
             Script { n_keys, min_keys, pub_keys, signatures }
 
-         }
+    }
 
     // Propose a new transaction to the peer wallets to sign
     fn propose_utxo(&self, inputs: Vec<String>, outputs: Vec<UTXO>, n_keys: u32,
-         min_keys: u32, pub_keys: Vec<String>, socket: UdpSocket) {
-
-        
-        let mut buf = [0; 1024];
-
+         min_keys: u32, pub_keys: Vec<String>) {
 
         let script = Script::new(n_keys, min_keys, pub_keys);
         let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).
             expect("Failed to create timestamp").as_secs();
         let mut amount: u64 = 0;
         
-        for utxo_id in inputs {
-            amount += self.utxos.get(&utxo_id).unwrap().amount;
+        for utxo_id in &inputs {
+            amount += self.utxos.get(utxo_id).unwrap().amount;
         }
         
-        let hasher = Sha256::new();
-        hasher.update(&timestamp.swap_bytes());
-        hasher.update(&inputs.as_bytes());
-        hasher.update(&outputs.as_bytes());
-        hasher.update(&amount.swap_bytes());
-        hasher.update(&script);
+        // Hash the transaction
+
+        let mut hasher = Sha256::new();
+
+        hasher.update(&timestamp.to_be_bytes());
+
+        for input in &inputs {
+            hasher.update(&input.as_bytes());
+        }
+
+        for output in &outputs {
+            hasher.update(&output.to_bytes());
+        }
+
+        hasher.update(&amount.to_be_bytes());
+        hasher.update(&script.to_bytes());
+
+        // Finish the hasher and create a new id for the transaction
 
         let digest = hasher.finish().to_vec();
         let id = hex::encode(digest);
 
         let new_tx = Transaction::new(id, timestamp, amount, 
-            inputs, outputs, script);
+            inputs, outputs.clone(), script);
 
-        for output in outputs {
+        for output in &outputs {
             let target_ip = self.ip_store.get(&output.to).unwrap();
-            self.socket.send_to(transaction.serialize().as_bytes(), target_ip);
+            match self.socket.send_to(new_tx.serialize().as_bytes(), target_ip) {
+                Ok(_) => {println!("Transaction sent to {}", target_ip);}
+                Err(_) => {println!("Failed to send transaction to {}", target_ip);}
+            };
+        }
+    }
+}
+
+impl Info for Wallet {
+
+    // Create a new wallet with a new ip, udp socket, keypairs etc.
+    fn new() -> Self {
+        let ip_base = String::from("127.0.0.1:");
+        let mut socket: Option<UdpSocket> = None;
+        let mut final_ip = String::new()    ;
+
+        for i in 7000..8000 {
+            let ip = format!("{}{}", ip_base, i);
+            let temp_socket = UdpSocket::bind(&ip);
+            match temp_socket {
+                Ok(temp) => {
+                    socket = Some(temp);
+                    final_ip = ip;
+                    break;
+                }
+                Err(_) => {continue;}
+            } 
+        }
+
+        let rng = rand::SystemRandom::new();
+        let pkcs8_bytes: pkcs8::Document = 
+            signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
+
+        let pair: Ed25519KeyPair = signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref())
+            .unwrap();
+
+        let pub_key: String = pair.public_key().encode_hex();
+
+        Wallet {
+            pub_key,
+            rng,
+            priv_key: pair,
+            utxos: HashMap::new(),
+            ip: final_ip,
+            socket: socket.unwrap(),
+            ip_store: HashMap::new()
+        }
+    }
+
+    fn get_balance(&self) -> u64 {
+        self.utxos.values().map(|utxo| utxo.amount).sum()
+    }
+
+    fn add_utxo(&mut self, utxo: UTXO) {
+        self.utxos.insert(utxo.id.clone(), utxo);
+    }
+
+    fn remove_utxo(&mut self, id: &String) {
+        self.utxos.remove(id);
+    }
+
+    fn reset_key_pair(&mut self) {
+        let pkcs8_bytes: pkcs8::Document = 
+            signature::Ed25519KeyPair::generate_pkcs8(&self.rng).unwrap();
+
+        let pair: Ed25519KeyPair = signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref())
+            .unwrap();
+
+        let pub_key: String = pair.public_key().encode_hex();
+
+        self.priv_key = pair;
+        self.pub_key = pub_key;
+    }
+
+    fn broadcast_key(&self, old_key: String, pub_key: String) {
+        for ip in self.ip_store.values() {
+            match self.socket.send_to(pub_key.as_bytes(), ip) {
+                Ok(_) => {println!("Public key sent to {}", ip);}
+                Err(_) => {println!("Failed to send public key to {}", ip);}
+            };
         }
     }
 }
