@@ -29,6 +29,16 @@ pub struct Transaction {
     pub owner: Script           // The ownership script that will allow the Transaction to be redeemed
 }
 
+impl UTXO {
+    pub fn new(id: String, amount: u64, to: String) -> UTXO {
+        UTXO { id, amount, to }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("Failed to serialize")
+    }
+}
+
 impl Script {
     pub fn new(n_keys: u32, min_keys: u32, pub_keys: Vec<String>) -> Script{
 
@@ -40,6 +50,10 @@ impl Script {
         }
 
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("Failed to serialize")
+    }
 }
 
 impl Transaction {
@@ -50,7 +64,11 @@ impl Transaction {
 
     }
 
-    fn serialize(&self) -> String {
+    pub fn serialize(&self) -> String {
         serde_json::to_string(self).expect("Failed to serialize")
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).expect("Failed to serialize")
     }
 }
