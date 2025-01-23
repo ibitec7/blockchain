@@ -10,25 +10,25 @@ pub struct Ledger {
 }
 
 impl Ledger {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Ledger {
             utxos: HashMap::new()
         }
     }
 
-    fn add_utxo(&mut self, utxo: UTXO) {
+    pub fn add_utxo(&mut self, utxo: UTXO) {
         self.utxos.insert(utxo.id.clone(), utxo);
     }
 
-    fn spend_utxo(&mut self, utxo_id: &String) -> Option<UTXO> {
+    pub fn spend_utxo(&mut self, utxo_id: &String) -> Option<UTXO> {
         self.utxos.remove(utxo_id)
     }
 
-    fn get_utxo(&self, utxo_id: &String) -> Option<&UTXO> {
+    pub fn get_utxo(&self, utxo_id: &String) -> Option<&UTXO> {
         self.utxos.get(utxo_id)
     }
 
-    fn verify_script(&self, script: &Script, tx: &Transaction) -> bool {
+    pub fn verify_script(&self, script: &Script, tx: &Transaction) -> bool {
         let mut temp_tx = tx.clone();
         temp_tx.owner.signatures = HashMap::new();
         let message_str = temp_tx.serialize();
@@ -62,7 +62,7 @@ impl Ledger {
         }
     }
 
-    fn verify_transaction(&self, tx: &Transaction) -> bool {
+    pub fn verify_transaction(&self, tx: &Transaction) -> bool {
         let mut input_sum = 0;
         let mut output_sum = 0;
 
