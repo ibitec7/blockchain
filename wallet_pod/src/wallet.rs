@@ -6,6 +6,8 @@ use openssl::sha::{self, Sha256};
 use serde::Serialize;
 use std::time::SystemTime;
 use std::collections::HashMap;
+use rdkafka::{config::FromClientConfig, producer::{self, BaseProducer, BaseRecord}};
+use rdkafka::ClientConfig;
 
 // Implementation of the owner's wallet
 
@@ -16,7 +18,8 @@ pub struct Wallet {
     pub utxos: HashMap<String, UTXO>,
     pub ip: String,
     pub socket: UdpSocket,
-    pub ip_store: HashMap<String, String>   // list of public keys and their IP addresses
+    pub ip_store: HashMap<String, String>, // list of public keys and their IP addresses
+    pub producer: BaseProducer
 }
 
 #[derive(Clone, Serialize)]
@@ -59,6 +62,8 @@ pub trait Info {
     fn reset_key_pair(&mut self);
 
     fn broadcast_key(&self, old_key: String, pub_key: String);
+
+    fn broadcast_tx(&self, tx: Transaction);
 }
 
 impl Transact for Wallet {
@@ -164,7 +169,7 @@ impl Info for Wallet {
     fn new() -> Self {
         let ip_base = String::from("127.0.0.1:");
         let mut socket: Option<UdpSocket> = None;
-        let mut final_ip = String::new()    ;
+        let mut final_ip = String::new();
 
         for i in 7000..8000 {
             let ip = format!("{}{}", ip_base, i);
@@ -188,6 +193,17 @@ impl Info for Wallet {
 
         let pub_key: String = pair.public_key().encode_hex();
 
+        let producer: BaseProducer = ClientConfig::new()
+            .set("bootstrap.servers", "localhost:9092")
+            .set("message.timeout.ms", "5000")
+            .set("group.id", pub_key.clone())
+            .set("enable.auto.commit", "true")
+            .set("linger.ms", "5")
+            .set("acks", "1")
+            .set("compression.type", "lz4")
+            .create()
+            .expect("Failed to create producer");
+
         Wallet {
             pub_key,
             rng,
@@ -195,7 +211,8 @@ impl Info for Wallet {
             utxos: HashMap::new(),
             ip: final_ip,
             socket: socket.unwrap(),
-            ip_store: HashMap::new()
+            ip_store: HashMap::new(),
+            producer
         }
     }
 
@@ -230,6 +247,18 @@ impl Info for Wallet {
                 Ok(_) => {println!("Public key sent to {}", ip);}
                 Err(_) => {println!("Failed to send public key to {}", ip);}
             };
+        }
+    }
+
+    fn broadcast_tx(&self, tx: Transaction) {
+        let tx_string = tx.serialize();
+        let record = BaseRecord::to("Transactions")
+            .key(&tx.id)
+            .payload(&tx_string);
+
+        match self.producer.send(record) {
+            Ok(_) => {println!("Transaction sent to Kafka");}
+            Err(_) => {println!("Failed to send transaction to Kafka");}
         }
     }
 }
