@@ -65,7 +65,7 @@ impl Transaction {
     }
 
     pub fn serialize(&self) -> String {
-        serde_json::to_string(self).expect("Failed to serialize")
+        serde_json::to_string_pretty(self).expect("Failed to serialize")
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

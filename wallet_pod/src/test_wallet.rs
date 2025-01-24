@@ -10,7 +10,7 @@ use ring::signature::{Ed25519KeyPair, KeyPair};
 mod tests {
     use crate::transaction::{Transaction,UTXO, Script};
     use crate::ledger::Ledger;
-    use crate::wallet::{Wallet, Transact, Info};
+    use crate::wallet::{self, Info, Transact, Wallet};
     use std::collections::HashMap;
     use ring::signature::{Ed25519KeyPair, KeyPair};
 
@@ -63,7 +63,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_script() {
+    fn test_verify_script() {
         let mut wallet1 = Wallet::new();
         let mut wallet2 = Wallet::new();
 
@@ -90,21 +90,20 @@ mod tests {
 
         let tx_message = test_tx.serialize();
 
+        println!("The message is: {}", tx_message);
+
+        let pub_key1 = wallet1.pub_key.clone();
+        let pub_key2 = wallet2.pub_key.clone();
+
         // Get the signatures for the UTXO
         let signature1 = wallet1.sign_utxo(tx_message.clone(), "utxo1".to_string());
         let signature2 = wallet2.sign_utxo(tx_message.clone(), "utxo1".to_string());
 
-        // Create a script with the signatures
-        let mut script = Script::new(
-            2,
-            1,
-            vec![wallet1.pub_key.clone(), wallet2.pub_key.clone()],
-        );
+        // Insert the signatures into the script
+        test_tx.owner.signatures.insert(pub_key1, signature1);
+        test_tx.owner.signatures.insert(pub_key2, signature2);
 
-        script.signatures.insert(wallet1.pub_key.clone(), signature1);
-        script.signatures.insert(wallet2.pub_key.clone(), signature2);
-
-        test_tx.owner = script;
+        println!("The message is: {}", tx_message);
 
         let mut ledger = Ledger::new();
         ledger.add_utxo(UTXO {
@@ -119,14 +118,24 @@ mod tests {
 
     #[test]
     fn test_propose_utxo() {
-        let wallet = Wallet::new();
+        let mut wallet = Wallet::new();
+        let mut wallet2 = Wallet::new();
         let inputs = vec!["input1".to_string()];
         let outputs = vec![UTXO {
             id: "utxo1".to_string(),
             amount: 50,
-            to: wallet.pub_key.clone(),
+            to: wallet2.pub_key.clone(),
         }];
-        let pub_keys = vec![wallet.pub_key.clone()];
+        let pub_keys = vec![wallet.pub_key.clone(),wallet2.pub_key.clone()];
+
+        wallet.ip_store.insert(wallet.pub_key.clone(), wallet.ip.clone());
+        wallet.ip_store.insert(wallet2.pub_key.clone(), wallet2.ip.clone());
+
+        wallet.utxos.insert("input1".to_string(), UTXO {
+            id: "input1".to_string(),
+            amount: 50,
+            to: wallet.pub_key.clone(),
+        });
 
         wallet.propose_utxo(inputs, outputs, 1, 1, pub_keys);
         // This test will not assert anything as it involves network operations.

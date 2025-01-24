@@ -52,8 +52,9 @@ impl Ledger {
                     Some(signature) => {
                         let signature_bytes = hex::decode(signature).unwrap();
 
-                        if pub_key.verify(message, &signature_bytes).is_ok() {
-                            valid_signatures += 1;
+                        match pub_key.verify(message, &signature_bytes) {
+                            Ok(_) => {valid_signatures += 1;},
+                            Err(_) => { println!("Invalid Signature"); }
                         }
                     }
                 }

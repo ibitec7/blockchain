@@ -1,5 +1,6 @@
 use hex::ToHex;
 use ring::{pkcs8, rand::{self, SystemRandom}, signature::{self, Ed25519KeyPair, KeyPair}};
+use ring::signature::{UnparsedPublicKey, Signature};
 use crate::transaction::{Transaction, Script, UTXO};
 use std::net::UdpSocket;
 use openssl::sha::{self, Sha256};
@@ -84,25 +85,12 @@ impl Transact for Wallet {
     // Sign a new transaction message once received
     fn sign_utxo(&mut self, message: String, id: String) -> String {
         // sign the new utxo here
-        let signature = hex::encode(self.priv_key.sign(&message.into_bytes()));
-        
-        let pkcs8_bytes: pkcs8::Document = 
-            signature::Ed25519KeyPair::generate_pkcs8(&self.rng).unwrap();
-
-        let pair: Ed25519KeyPair = signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref())
-            .unwrap();
-
-        let pub_key: String = hex::encode(pair.public_key());
+        let signature_bytes = self.priv_key.sign(message.as_bytes());
+        let signature: String = signature_bytes.encode_hex();
 
         self.reset_key_pair();
 
-
-        match self.utxos.remove(&id) {
-            Some(utxo) => {
-                println!("UTXO id {} removed", utxo.id);
-            }
-            None => { println!("UTXO not found");}
-        };
+        let _ = self.remove_utxo(&id);
 
         signature
     }
