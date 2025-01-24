@@ -1,5 +1,6 @@
 use crate::{block::{Block, BlockChain}, transaction::Transaction};
 use bls_signatures::{PrivateKey, PublicKey, Serialize};
+use ring::signature::{UnparsedPublicKey, ED25519};
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use crate::concensus::Pbft;
@@ -10,6 +11,7 @@ use rdkafka::Message;
 use std::time::Duration;
 use std::sync::Arc;
 use tokio;
+
 // use serde_json::to_string;
 use serde::{Deserialize, Serialize as SerdeSerialize};
 
@@ -113,8 +115,9 @@ impl Node {
                                             for transaction in residual.clone() {
                                                 a = a+1.0;    
                                                 let balance = user_base.get(&transaction.from).unwrap().to_owned();
-                                                if transaction.verify_transaction(PublicKey::from_bytes(
-                                                    &hex::decode(&transaction.from).unwrap().as_slice()).unwrap()) == true
+                                                let pub_key_bytes = hex::decode(&transaction.from).unwrap();
+                                                let public_key = UnparsedPublicKey::new(&ED25519, pub_key_bytes);
+                                                if transaction.verify_transaction(public_key) == true
                                                 && balance > (transaction.amount + transaction.fee) {
                                                     let new_balance = balance - transaction.amount - transaction.fee;
                                                     user_base.insert(transaction.from.clone(), new_balance);

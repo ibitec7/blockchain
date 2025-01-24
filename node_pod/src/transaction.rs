@@ -1,6 +1,7 @@
 use serde::{ Serialize, Deserialize };
 use bls_signatures::{ PublicKey, Serialize as OtherSerialize, Signature};
 use serde_json::{to_string, from_str};
+use ring::signature::{UnparsedPublicKey, VerificationAlgorithm, ED25519};
 use openssl::sha;
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug, PartialEq)]
@@ -47,14 +48,16 @@ impl Transaction {
     //     predicate
     // }
 
-    pub fn verify_transaction(&self, public_key: PublicKey) -> bool{
+    pub fn verify_transaction(&self, public_key: UnparsedPublicKey<Vec<u8>>) -> bool{
         let mut temp_tx = self.clone();
         temp_tx.signature = String::new();
         let msg = to_string(&temp_tx).expect("Failed to parse transaction");
 
-        let verify = public_key.verify(Signature::from_bytes(hex::decode(&self.signature).unwrap().as_slice())
-            .expect("Failed to parse signature"), msg);
+        let verify = public_key.verify(msg.as_bytes() ,hex::decode(&self.signature).unwrap().as_slice());
 
-        return verify;
+        match verify {
+            Ok(_) => true,
+            Err(_) => false
+        }
     }
 }
