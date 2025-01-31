@@ -83,7 +83,7 @@ impl Node {
     pub async fn pool_transactions(&mut self, consumer: &StreamConsumer, user_base: &mut HashMap<String, f64>,
          residual: &mut Vec<Transaction>, time_out: u64, tx_time: u64, block_size: &usize) -> (Option<Vec<Transaction>>,Vec<Transaction>, Option<PoolingMetrics>){
 
-        let mut pool: Vec<Transaction> = Vec::new();
+        let mut pool: Vec<Transaction> = Vec::with_capacity(*block_size);
 
         let mut message_stream = consumer.stream();
 
