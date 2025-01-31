@@ -1,4 +1,6 @@
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/ibitec7/blockchain/blob/main/LICENSE)
+[![Licence](https://img.shields.io/github/license/Ileriayo/markdown-badges?style=for-the-badge)](./LICENSE)
+[![Orcid](https://img.shields.io/badge/ORCiD-003449.svg?style=for-the-badge&logo=orcid&logoColor=a6ce39)](https://orcid.org/0009-0004-6630-5402)
+[![Docker](https://img.shields.io/badge/dockerhub-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/repositories/ibitec)
 
 This is a proof-of-concept implementation of the proposed blockchain architecture from the paper **Redefining Hybrid Blockchains: A Balanced Architecture** by Syed Ibrahim Omer. This is research code and may contain issues and lack certain functionalities.
 
