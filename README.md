@@ -1,3 +1,5 @@
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/ibitec7/blockchain/blob/main/LICENSE)
+
 This is a proof-of-concept implementation of the proposed blockchain architecture from the paper **Redefining Hybrid Blockchains: A Balanced Architecture** by Syed Ibrahim Omer. This is research code and may contain issues and lack certain functionalities.
 
 **DO NOT USE THIS PROJECT IN A PRODUCTION ENVIRONMENT** 
