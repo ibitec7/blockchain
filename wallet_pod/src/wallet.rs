@@ -1,13 +1,11 @@
 use hex::ToHex;
 use ring::{pkcs8, rand::{self, SystemRandom}, signature::{self, Ed25519KeyPair, KeyPair}};
-use ring::signature::{UnparsedPublicKey, Signature};
 use crate::transaction::{Transaction, Script, UTXO};
 use std::net::UdpSocket;
-use openssl::sha::{self, Sha256};
-use serde::Serialize;
+use openssl::sha::Sha256;
 use std::time::SystemTime;
 use std::collections::HashMap;
-use rdkafka::{config::FromClientConfig, producer::{self, BaseProducer, BaseRecord}};
+use rdkafka::producer::{BaseProducer, BaseRecord};
 use rdkafka::ClientConfig;
 
 // Implementation of the owner's wallet
@@ -21,22 +19,6 @@ pub struct Wallet {
     pub socket: UdpSocket,
     pub ip_store: HashMap<String, String>, // list of public keys and their IP addresses
     pub producer: BaseProducer
-}
-
-#[derive(Clone, Serialize)]
-pub struct PubKeys {
-    pub new_pub_key: String,
-    pub old_pub_key: String
-}
-
-impl PubKeys {
-    pub fn new(new_pub_key: String, old_pub_key: String) -> Self {
-        PubKeys { new_pub_key, old_pub_key }
-    }
-
-    pub fn serialize(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
 }
 
 pub trait Transact {
@@ -62,7 +44,7 @@ pub trait Info {
 
     fn reset_key_pair(&mut self);
 
-    fn broadcast_key(&self, old_key: String, pub_key: String);
+    fn broadcast_key(&self, pub_key: String);
 
     fn broadcast_tx(&self, tx: Transaction);
 }
@@ -229,7 +211,7 @@ impl Info for Wallet {
         self.pub_key = pub_key;
     }
 
-    fn broadcast_key(&self, old_key: String, pub_key: String) {
+    fn broadcast_key(&self, pub_key: String) {
         for ip in self.ip_store.values() {
             match self.socket.send_to(pub_key.as_bytes(), ip) {
                 Ok(_) => {println!("Public key sent to {}", ip);}
