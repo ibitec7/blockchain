@@ -1,17 +1,17 @@
-use bls_signatures::{PrivateKey, Serialize};
+// use bls_signatures::{PrivateKey, Serialize};
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::time::SystemTime;
+use ring::signature::{Ed25519KeyPair, KeyPair, self};
 use std::time::UNIX_EPOCH;
 use serde_json::{to_string, from_str};
 use serde::{Serialize as SerdeSerialize,Deserialize};
 
 use crate::transaction::{ Transaction, generate_key_pair };
 
-#[derive(Clone)]
 pub struct User {
     pub user_id: String,
     pub balance: f64,
-    private_key: PrivateKey,
+    private_key: Ed25519KeyPair,
 }
 
 #[derive(SerdeSerialize, Deserialize)]
@@ -35,8 +35,7 @@ impl UserMessage {
 impl User {
     pub fn new() -> Self {
         let (private, public) = generate_key_pair();
-        let public_str = hex::encode(public.as_bytes().to_vec());
-        User { user_id: public_str, balance: 42000.0, private_key: private }
+        User { user_id: public, balance: 42000.0, private_key: private }
     }
 
     pub fn serialize(&self) -> String {
@@ -45,11 +44,11 @@ impl User {
     }
 
     pub fn sign_transaction(&self, tx: &mut Transaction){
-        tx.sign_transaction(self.private_key);
+        tx.sign_transaction(&self.private_key);
     }
 
-    pub fn simulate_transaction(&self, user_base: Vec<User>) -> Transaction {
-        let index = user_base.iter().position(|user| { user.user_id == self.user_id }).unwrap();
+    pub fn simulate_transaction(&self, user_base: Vec<String>) -> Transaction {
+        let index = user_base.iter().position(|user| { *user == self.user_id }).unwrap();
         let user_dist: Uniform<usize> = Uniform::new(0, user_base.len());
 
         let mut rng = {
@@ -65,10 +64,10 @@ impl User {
         let amount_dist: Uniform<f64> = Uniform::new(0.0, 120.0);
         let amount: f64 = rng.sample(amount_dist);
         let fees: f64 = 0.01 * amount;
-        let to = user_base[to_index].user_id.clone();
+        let to = user_base[to_index].clone();
 
         let mut transaction = Transaction::new(self.user_id.clone(), to, time, amount, fees);
-        transaction.sign_transaction(self.private_key);
+        transaction.sign_transaction(&self.private_key);
 
         return transaction;
     }

@@ -1,8 +1,10 @@
+use hex::ToHex;
 use openssl::sha;
 use serde::{ Serialize, Deserialize };
-use bls_signatures::{PrivateKey, PublicKey, Serialize as OtherSerialize, Signature};
+// use bls_signatures::{PrivateKey, PublicKey, Serialize as OtherSerialize, Signature};
+use ring::{pkcs8, rand::{self, SystemRandom},signature::{KeyPair, Ed25519KeyPair, UnparsedPublicKey}};
+use ring::signature;
 use serde_json::{to_string, from_str};
-use rand::thread_rng;
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct Transaction {
@@ -42,12 +44,12 @@ impl Transaction {
         transaction
     }
 
-    pub fn sign_transaction(&mut self, private_key: PrivateKey) {
+    pub fn sign_transaction(&mut self, private_key: &Ed25519KeyPair) {
         let tx_json = to_string(&self).expect("Failed to parse transaction");
 
-        let sign = private_key.sign(tx_json);
+        let signature_bytes = private_key.sign(tx_json.as_bytes());
 
-        self.signature = hex::encode(sign.as_bytes());
+        self.signature = signature_bytes.encode_hex();
     }
 
     pub fn generate_transaction_id(&mut self) -> String {
@@ -58,22 +60,32 @@ impl Transaction {
         return hex::encode(&digest);
     }
 
-    pub fn verify_transaction(&self, public_key: PublicKey) -> bool{
+    pub fn verify_transaction(&self, public_key_str: String) -> bool{
         let mut temp_tx = self.clone();
         temp_tx.signature = String::new();
         let msg = to_string(&temp_tx).expect("Failed to parse transaction");
 
-        let verify = public_key.verify(Signature::from_bytes(hex::decode(&self.signature).unwrap().as_slice())
-            .expect("Failed to parse signature"), msg);
+        let public_key_bytes = hex::decode(public_key_str).unwrap();
+        let pub_slice = public_key_bytes.as_slice();
+        let public_key = UnparsedPublicKey::new(&signature::ED25519, pub_slice);
 
-        return verify;
+        let verify = public_key.verify(msg.as_bytes(), hex::decode(&self.signature)
+        .expect("Failed to parse signature").as_slice());
+
+        match verify {
+            Ok(_) => {return true;},
+            Err(_) => {return false;}
+        }
     }
 }
 
-pub fn generate_key_pair() -> (PrivateKey, PublicKey) {
-    let private_key = PrivateKey::generate(&mut thread_rng());
-    let public_key = private_key.public_key();
+pub fn generate_key_pair() -> (Ed25519KeyPair, String) {
+    let rng = SystemRandom::new();
+    let pkcs8_bytes: pkcs8::Document = Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
+    let pair: Ed25519KeyPair = Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref()).unwrap();
 
-    return (private_key, public_key)
+    let public_key: String = pair.public_key().encode_hex();
+
+    return (pair, public_key)
 
 }
