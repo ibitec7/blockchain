@@ -11,6 +11,7 @@ use tokio::fs;
 use crate::transaction::Transaction;
 
 pub mod transaction;
+pub mod test_transaction;
 pub mod simulate;
 
 #[derive(Deserialize)]
@@ -46,6 +47,7 @@ async fn main() {
     let mut user_base = vec![];
     let mut user_base_str = vec![];
     let mut user_base_rec = vec![];
+    let mut user_ids: Vec<String> = vec![];
     let topic = String::from("Users");
     let config = load_config().await.unwrap();
 
@@ -53,6 +55,7 @@ async fn main() {
         let user = User::new();
         let record_json = user.serialize();
         user_base_str.push(record_json);
+        user_ids.push(user.user_id.clone());
         user_base.push(user);
     }
 
@@ -111,7 +114,7 @@ async fn main() {
     
     for _ in 0..config.tx_size {
         let idx = rng.sample(dist);
-        transaction_batch.push(user_base[idx].simulate_transaction(user_base.clone()));
+        transaction_batch.push(user_base[idx].simulate_transaction(user_ids.clone()));
         if transaction_batch.len() % 64 == 0 {
             let record = serde_json::to_string(&transaction_batch).expect("Failed to serialize");
             transactions.push(record);
