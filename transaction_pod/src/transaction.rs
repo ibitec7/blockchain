@@ -2,7 +2,7 @@ use hex::ToHex;
 use openssl::sha;
 use serde::{ Serialize, Deserialize };
 // use bls_signatures::{PrivateKey, PublicKey, Serialize as OtherSerialize, Signature};
-use ring::{pkcs8, rand::{self, SystemRandom},signature::{KeyPair, Ed25519KeyPair, UnparsedPublicKey}};
+use ring::{pkcs8, rand::SystemRandom,signature::{KeyPair, Ed25519KeyPair, UnparsedPublicKey}};
 use ring::signature;
 use serde_json::{to_string, from_str};
 

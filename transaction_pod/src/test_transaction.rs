@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::transaction::{Transaction, generate_key_pair};
 
     #[test]

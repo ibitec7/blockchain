@@ -1,7 +1,7 @@
 // use bls_signatures::{PrivateKey, Serialize};
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::time::SystemTime;
-use ring::signature::{Ed25519KeyPair, KeyPair, self};
+use ring::signature::Ed25519KeyPair;
 use std::time::UNIX_EPOCH;
 use serde_json::{to_string, from_str};
 use serde::{Serialize as SerdeSerialize,Deserialize};
