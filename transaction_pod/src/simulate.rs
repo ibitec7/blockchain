@@ -6,7 +6,7 @@ use std::time::UNIX_EPOCH;
 use serde_json::{to_string, from_str};
 use serde::{Serialize as SerdeSerialize,Deserialize};
 
-use crate::transaction::{ Transaction, generate_key_pair };
+use crate::tx_mod::{ Transaction, generate_key_pair, TransactionMethods };
 
 pub struct User {
     pub user_id: String,

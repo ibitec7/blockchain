@@ -8,11 +8,13 @@ use serde::Deserialize;
 use serde_yaml;
 use std::thread;
 use tokio::fs;
-use crate::transaction::Transaction;
 
 pub mod transaction;
 pub mod test_transaction;
 pub mod simulate;
+pub mod tx_mod;
+
+use crate::tx_mod::Transaction;
 
 #[derive(Deserialize)]
 pub struct ProducerConfig {

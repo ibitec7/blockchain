@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::transaction::{Transaction, generate_key_pair};
+    use crate::tx_mod::{Transaction, generate_key_pair};
+    use crate::tx_mod::TransactionMethods;
 
     #[test]
     fn test_transaction_new_and_id_generation() {
