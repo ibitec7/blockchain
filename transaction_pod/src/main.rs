@@ -102,11 +102,6 @@ async fn main() {
         StdRng::from_rng(rng).unwrap()
     };
 
-    // thread::sleep(Duration::from_secs(5));
-
-    // let mut transaction_batch: Vec<Transaction> = vec![];
-    // let mut transactions: Vec<String> = vec![];
-    // let mut tx_record = vec![];
     let kafka_topic = String::from("Transactions");
 
     thread::sleep(Duration::from_secs(5));
