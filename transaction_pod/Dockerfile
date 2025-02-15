@@ -1,8 +1,8 @@
-FROM rust:1.79.0
+FROM ubuntu:24.04
 WORKDIR /app
 
-COPY . .
-RUN cargo build --release
+COPY ./src/config.yaml ./src/config.yaml
+COPY ./target/release/tx_pod ./target/release/tx_pod
 
 EXPOSE 9092
 
