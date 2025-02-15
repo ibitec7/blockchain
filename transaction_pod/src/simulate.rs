@@ -1,4 +1,3 @@
-// use bls_signatures::{PrivateKey, Serialize};
 use rand::{distributions::Uniform, rngs::StdRng, Rng, SeedableRng};
 use std::time::SystemTime;
 use ring::signature::Ed25519KeyPair;

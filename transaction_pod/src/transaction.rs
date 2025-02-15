@@ -6,16 +6,6 @@ use ring::signature;
 use serde_json::{to_string, from_str};
 
 use crate::tx_mod::{TransactionMethods, Transaction};
-// #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
-// pub struct Transaction {
-//     pub id: String,
-//     pub from: String,
-//     pub to: String,
-//     pub timestamp: u64,
-//     pub amount: f64,
-//     pub fee: f6pub 4,
-//     pub signature: String,
-// }
 
 impl TransactionMethods for Transaction {
     fn new(from_: String, to_: String, time: u64, amt: f64, fees:f64) -> Self{
