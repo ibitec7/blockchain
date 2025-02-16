@@ -1,45 +1,11 @@
 use openssl::sha::Sha256;
-// use hex::encode;
-use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use crate::merkle_header::{MerkleTree, Proof, MerkleMethods};
+use crate::transaction_header::Transaction;
 
-use super::transaction::Transaction;
+impl MerkleMethods for MerkleTree {
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MerkleTree {
-    pub merkle_root: Vec<u8>,
-    leaves: Vec<Vec<u8>>,
-    nodes: Vec<Vec<u8>>,
-    depth: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Proof {
-    pub path: Vec<Vec<u8>>,
-    pub leaf_index: usize,
-}
-
-
-// impl fmt::Display for MerkleTree {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "MerkleRoot: {}\nLeaves: {:?}\nNodes: {:?}\nDepth: {:?}", 
-//                encode(&self.merkle_root), 
-//                self.leaves.iter().map(|l| encode(l)).collect::<Vec<String>>(),
-//                self.nodes.iter().map(|n| encode(n)).collect::<Vec<String>>(),
-//                 self.depth)
-//     }
-// }
-
-// impl fmt::Display for Proof {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "Path: {:?}\nLeaf Index: {}",
-//                 self.path.iter().map(|l| encode(l)).collect::<Vec<String>>(),
-//                 self.leaf_index)
-//     }
-// }
-
-impl MerkleTree {
-    pub fn new_genisis() -> Self {
+    fn new_genesis() -> Self {
         MerkleTree {
             merkle_root: Vec::new(),
             leaves: Vec::new(),
@@ -48,7 +14,7 @@ impl MerkleTree {
         }
     }
 
-    pub fn new(data: &Vec<Transaction>) -> Self {
+    fn new(data: &Vec<Transaction>) -> Self {
         let transactions: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> { hex::decode(x.id.clone()).unwrap() }).collect();
         let leaves = transactions.clone();
 
@@ -93,7 +59,7 @@ impl MerkleTree {
         MerkleTree { merkle_root, leaves, nodes, depth: levels }
     }
 
-    pub fn generate_path(&self, target: &Transaction) -> Proof {
+    fn generate_proof(&self, target: &Transaction) -> Proof {
         let mut path: Vec<Vec<u8>> = Vec::new();
         let mut current_index = self.leaves.iter().position(|x| { x.deref() == hex::decode(target.id.clone()).unwrap() })
                                         .expect("Failed to retrieve current_index");
@@ -130,63 +96,66 @@ impl MerkleTree {
 
         Proof { path, leaf_index }
     }
-}
 
-pub fn generate_root(data: Vec<Transaction>) -> Vec<u8> {
-    let transactions: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> {hex::decode(x.id.clone()).unwrap()}).collect();
+    fn generate_root(data: &Vec<Transaction>) -> Vec<u8> {
+        let transactions: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> {hex::decode(x.id.clone()).unwrap()}).collect();
 
-    let mut current_level = transactions.clone();
-    let mut next_level = Vec::new();
+        let mut current_level = transactions.clone();
+        let mut next_level = Vec::new();
 
-    while current_level.len() > 1 {
-        next_level.clear();
-        for i in (0..current_level.len()).step_by(2) {
-            let current_node = &current_level[i];
-            let sibling_node = if i + 1 < current_level.len() {
-                &current_level[i + 1]
-            } else {
-                current_node
+        while current_level.len() > 1 {
+            next_level.clear();
+            for i in (0..current_level.len()).step_by(2) {
+                let current_node = &current_level[i];
+                let sibling_node = if i + 1 < current_level.len() {
+                    &current_level[i + 1]
+                } else {
+                    current_node
+                };
+                let mut combined = current_node.clone();
+                combined.append(sibling_node.clone().as_mut());
+                let mut hasher = Sha256::new();
+                hasher.update(&combined);
+                let hash = hasher.finish().to_vec();
+
+                next_level.push(hash)
+            }
+            current_level = next_level.clone();
+        }
+        current_level.first().expect("Failed to extract the Merkle Root").deref().to_vec()
+    }
+
+    fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &Vec<u8>) -> bool {
+        let mut sibling;
+        let mut hash = hex::decode(leaf.id).unwrap();
+
+        for _ in 0..proof.path.len() / 2 {
+            let idx = proof.path.iter().position(|x| *x == hash);
+            let idx = match idx {
+                Some(val) => val,
+                None => { return false; }
             };
-            let mut combined = current_node.clone();
-            combined.append(sibling_node.clone().as_mut());
+
             let mut hasher = Sha256::new();
-            hasher.update(&combined);
-            let hash = hasher.finish().to_vec();
+            
+            if idx % 2 == 0 {
+                sibling = proof.path[&idx + 1].clone();
 
-            next_level.push(hash)
-        }
-        current_level = next_level.clone();
-    }
-    current_level.first().expect("Failed to extract the Merkle Root").deref().to_vec()
-}
+                hasher.update(&hash);
+                hasher.update(&sibling);
+            } else {
+                sibling = proof.path[&idx - 1].clone();
 
-pub fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &Vec<u8>) -> bool {
-    let mut sibling;
-    let mut hash = hex::decode(leaf.id).unwrap();
+                hasher.update(&sibling);
+                hasher.update(&hash);
+            }
 
-    for _ in 0..proof.path.len() / 2 {
-        let idx = proof.path.iter().position(|x| *x == hash);
-        let idx = match idx {
-            Some(val) => val,
-            None => { return false; }
-        };
-
-        let mut hasher = Sha256::new();
-        
-        if idx % 2 == 0 {
-            sibling = proof.path[&idx + 1].clone();
-
-            hasher.update(&hash);
-            hasher.update(&sibling);
-        } else {
-            sibling = proof.path[&idx - 1].clone();
-
-            hasher.update(&sibling);
-            hasher.update(&hash);
+            hash = hasher.finish().to_vec();
         }
 
-        hash = hasher.finish().to_vec();
+        hash == *merkle_root
     }
-
-    hash == *merkle_root
 }
+
+
+
