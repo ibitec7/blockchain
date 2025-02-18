@@ -1,64 +1,90 @@
-use crate::{block::{Block, BlockChain}, transaction::Transaction};
+use crate::{block_header::{Block, BlockChain, BlockMethods, BlockChainMethods}, transaction_header::{Transaction, TransactionMethods}};
 use bls_signatures::{PrivateKey, PublicKey, Serialize};
 use ring::signature::{UnparsedPublicKey, ED25519};
 use futures_util::StreamExt;
 use std::collections::HashMap;
-use crate::concensus::Pbft;
-use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::BaseProducer};
+use crate::consensus_header::Pbft;
+use rdkafka::{consumer::{Consumer, StreamConsumer, BaseConsumer}, producer::{Producer,BaseProducer, BaseRecord}, ClientConfig};
 use tokio::time::{timeout, Instant};
 use crate::network::{consume_kafka, ready_state};
+use crate::node_header::NodeMethods;
 use rdkafka::Message;
 use std::time::Duration;
 use std::sync::Arc;
+use crate::network_header::{Network, NodeMessage};
 use tokio;
+use crate::node_header::{Node, NodeState, PoolingMetrics, ConcensusMetrics};
 
-// use serde_json::to_string;
-use serde::{Deserialize, Serialize as SerdeSerialize};
+// use serde_json::to_string;transaction_header
 
-use crate::concensus::Validator;
 
 ///         WORK ON CORDINATING THE CONCENSUS STEPS AND PROCESS
 
-#[derive(SerdeSerialize, Deserialize, Clone, std::fmt::Debug)]
-pub enum NodeState {
-    Idle,
-    PrePreparing,
-    Preparing,
-    Committing,
-    Done
+impl Network for Node {
+    async fn broadcast_kafka(&self, topic: &str, message: NodeMessage, producer: &BaseProducer){
+        let message = serde_json::to_string(&message).expect("Failed to parse Block");
+
+        producer.send(
+            BaseRecord::to(topic)
+            .payload(&message)
+            .key(&self.id)
+        ).expect("Failed to send message");
+
+        producer.flush(Duration::from_secs(20)).expect("Failed to flush");
+
+        if topic == "Prepare" {
+            producer.send(
+                BaseRecord::to("Status")
+                .payload("Commit")
+                .key(&self.id)
+            ).expect("Failed to send message");
+        }
+
+        producer.flush(Duration::from_secs(20)).expect("Failed to flush");
+    }
+
+    fn consume_kafka(&self, topic: &str) -> Vec<String>{
+        let consumer: BaseConsumer = ClientConfig::new()
+            .set("bootstrap.servers", "localhost:9092")
+            .set("group.id", &(self.id.clone()+"consumer"))
+            .set("enable.auto.commit","true")
+            .create()
+            .expect("Failed to make consumer");
+
+        consumer.subscribe(&[topic]).expect("Subscription Error");
+
+        let timeout = Duration::from_secs(10);
+        let mut message_pool = Vec::new();
+        let mut last_received_time = None;
+
+        loop {
+            // Wait for all the Nodes to broadcast the message
+            // 5 seconds is the timeout after which it will move on to process the messages
+            match consumer.poll(Duration::from_secs(5)) {
+                Some(Ok(message)) => {
+                    if let Some(payload) = message.payload() {
+                        let msg = String::from(std::str::from_utf8(payload).expect("Failed to deserialize message"));
+                        message_pool.push(msg);
+                        last_received_time = Some(Instant::now());
+                    }
+                }
+                _ => continue,
+            }
+            match last_received_time {
+                Some(time) => {
+                    if time.elapsed() > timeout {
+                        break;
+                    }
+                }
+                _ => { continue; }
+            }
+        }
+        message_pool
+    }
 }
 
-pub struct Node {
-    pub id: String,
-    pub block_chain: BlockChain,
-    pub stake: f64,
-    pub state: NodeState,
-    pub staging: Vec<Transaction>,
-    pub block_staging: Vec<Block>,
-    pub validators: Vec<Validator>,
-    pub primary: Vec<Validator>,
-    pub msg_idx: Vec<usize>,
-    private_key: PrivateKey
-}
-
-pub struct PoolingMetrics {
-    pub tps: f64,
-    pub processtime: f64,
-    pub bad_tx: f64,
-    pub ttf: f64
-}
-
-pub struct ConcensusMetrics {
-    pub prepre_time: f64,
-    pub pre_time: f64,
-    pub commit_time: f64,
-    pub prepre_wait: f64,
-    pub pre_wait: f64,
-    pub commit_wait: f64
-}
-
-impl Node {
-    pub fn new() -> Self {
+impl NodeMethods for Node {
+    fn new() -> Self {
         let mut rng = rand::thread_rng();
         let pvt_key = PrivateKey::generate(&mut rng);
         let pub_key = pvt_key.public_key();
@@ -73,15 +99,16 @@ impl Node {
         node
     }
 
-    pub fn sign_message(&self, block: &Block) -> String {
+    fn sign_message(&self, block: &Block) -> String {
         let signature = self.private_key.sign(block.serialize_block());
         hex::encode(signature.as_bytes())
     }
 
     // Will have to change the pooling logic to pool only then wait
 
-    pub async fn pool_transactions(&mut self, consumer: &StreamConsumer, user_base: &mut HashMap<String, f64>,
-         residual: &mut Vec<Transaction>, time_out: u64, tx_time: u64, block_size: &usize) -> (Option<Vec<Transaction>>,Vec<Transaction>, Option<PoolingMetrics>){
+    async fn pool_transactions(&mut self, consumer: &StreamConsumer, user_base: &mut HashMap<String, f64>,
+         residual: &mut Vec<Transaction>, time_out: u64, tx_time: u64, block_size: &usize) -> 
+         (Option<Vec<Transaction>>,Vec<Transaction>, Option<PoolingMetrics>){
 
         let mut pool: Vec<Transaction> = Vec::with_capacity(*block_size);
 
@@ -115,15 +142,18 @@ impl Node {
                                             for transaction in residual.clone() {
                                                 a = a+1.0;    
                                                 let balance = user_base.get(&transaction.from).unwrap().to_owned();
+                                                
+                                                if balance < transaction.amount + transaction.fee {
+                                                    continue;
+                                                }
+
                                                 let pub_key_bytes = hex::decode(&transaction.from).unwrap();
                                                 let public_key = UnparsedPublicKey::new(&ED25519, pub_key_bytes);
-                                                if transaction.verify_transaction(public_key) == true
-                                                && balance > (transaction.amount + transaction.fee) {
+                                                if transaction.verify_transaction(public_key) == true {
                                                     let new_balance = balance - transaction.amount - transaction.fee;
                                                     user_base.insert(transaction.from.clone(), new_balance);
                                                     pool.push(transaction.to_owned());
                                                 } else { continue; }
-                                                //once pool has been filled then return the pool
                                                 if pool.len() == *block_size { 
                                                     let end = s1.elapsed().as_millis() as f64;
                                                     let tps = 1000.0 * (a / (start.elapsed().as_millis() as f64));
@@ -166,11 +196,11 @@ impl Node {
         }
     }
 
-    pub async fn concensus(&mut self, pool: Vec<Transaction>, pkey_store: HashMap<String, PublicKey>,
+    async fn concensus(&mut self, pool: Vec<Transaction>, pkey_store: HashMap<String, PublicKey>,
     prepre_con: Arc<StreamConsumer>, pre_con: Arc<StreamConsumer>,
     prepre_ready: &StreamConsumer, pre_ready: &StreamConsumer, commit_ready: &StreamConsumer,
     prepre_prod: Arc<BaseProducer>, pre_prod: Arc<BaseProducer>, comm_prod: Arc<BaseProducer>,
-    time_out: u64) -> Option<ConcensusMetrics> {
+    time_out: u64) -> Option<ConcensusMetrics>{
 
         let id = self.id.clone()+"pre";
         let id2 = self.id.clone()+"prep";
@@ -241,4 +271,3 @@ impl Node {
 
     }
 }
-
