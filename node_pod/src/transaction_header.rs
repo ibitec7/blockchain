@@ -2,6 +2,7 @@
 use serde::{Serialize, Deserialize};
 use ring::signature::UnparsedPublicKey;
 
+
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug, PartialEq)]
 pub struct Transaction {
     pub id: String,
@@ -22,4 +23,3 @@ pub trait TransactionMethods {
 
     fn verify_transaction(&self, public_key: UnparsedPublicKey<Vec<u8>>) -> bool;
 }
-
