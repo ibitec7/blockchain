@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
-use crate::block_header::{Block, BlockChain};
-use crate::transaction_header::Transaction;
-use crate::consensus_header::Validator;
+use crate::definitions::block_header::{Block, BlockChain};
+use crate::definitions::transaction_header::Transaction;
+use crate::definitions::consensus_header::Validator;
 use bls_signatures::{PrivateKey, PublicKey};
 use rdkafka::{consumer::StreamConsumer, producer::BaseProducer};
 use std::sync::Arc;

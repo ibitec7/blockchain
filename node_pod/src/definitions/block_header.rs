@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use crate::transaction_header::Transaction;
+use crate::definitions::transaction_header::Transaction;
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug, PartialEq)]
 pub struct Block {
