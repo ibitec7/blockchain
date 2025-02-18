@@ -1,4 +1,3 @@
-use node::{ConcensusMetrics, PoolingMetrics};
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::BaseProducer;
 use rdkafka::ClientConfig;
@@ -7,28 +6,35 @@ use std::time::Duration;
 use rdkafka::Message;
 use futures_util::stream::StreamExt;
 use tokio::time::{timeout, Instant};
-use crate::node::Node;
+use crate::node_header::{ConcensusMetrics, PoolingMetrics, Node, NodeMethods};
 use std::sync::Arc;
 use tokio::fs;
 use serde_yaml;
 use serde::{Serialize as SerdeSerialize, Deserialize};
-use crate::transaction::Transaction;
+use crate::transaction_header::Transaction;
 use bls_signatures::{PublicKey, Serialize};
 use std::collections::HashMap;
-use crate::concensus::{PoS, Validator};
+use crate::consensus_header::{PoS, Validator};
 use csv::Writer;
 
 ///     WORK ON THE STEPS THAT WILL BE DONE BY THE NODES
 ///     IN PARTICULAR HOW THEY WILL LISTEN FOR VALIDATORS TO UPDATE THE VALIDATORS LIST AND PRIMARIES
 ///     ALSO HOW THEY WILL LISTEN FOR USERS TO GET USER PUB KEYS
 
-pub mod concensus;
+pub mod consensus;
 pub mod network;
+pub mod node_header;
 pub mod transaction;
-pub mod node;
-pub mod merkle_tree;
-pub mod block;
+pub mod consensus_header;
 pub mod simulate;
+pub mod test_merkle;
+pub mod transaction_header;
+pub mod merkle_header;
+pub mod merkle_tree;
+pub mod network_header;
+pub mod block_header;
+pub mod node;
+pub mod block;
 
 #[derive(SerdeSerialize, Deserialize, Clone)]
 
@@ -430,6 +436,3 @@ async fn main() {
         wtr.flush().expect("Failed to flush wtr");
     }
 }
-
-
-
