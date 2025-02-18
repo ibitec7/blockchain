@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use crate::transaction::UTXO;
 use crate::transaction::{Transaction, Script};
-use hex::FromHex;
 use ring::signature;
-use ring::signature::{Ed25519KeyPair, Signature, UnparsedPublicKey};
+use ring::signature::UnparsedPublicKey;
 
 pub struct Ledger {
     utxos: HashMap<String, UTXO>
