@@ -1,7 +1,7 @@
 use serde_json::{to_string, from_str};
 use ring::signature::UnparsedPublicKey;
 use openssl::sha;
-use crate::transaction_header::{Transaction, TransactionMethods};
+use crate::definitions::transaction_header::{Transaction, TransactionMethods};
 
 impl TransactionMethods for Transaction {
 

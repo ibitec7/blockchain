@@ -1,87 +1,23 @@
-use crate::{block_header::{Block, BlockChain, BlockMethods, BlockChainMethods}, transaction_header::{Transaction, TransactionMethods}};
+use crate::definitions::{block_header::{Block, BlockChain, BlockMethods, BlockChainMethods}, transaction_header::{Transaction, TransactionMethods}};
 use bls_signatures::{PrivateKey, PublicKey, Serialize};
 use ring::signature::{UnparsedPublicKey, ED25519};
 use futures_util::StreamExt;
 use std::collections::HashMap;
-use crate::consensus_header::Pbft;
-use rdkafka::{consumer::{Consumer, StreamConsumer, BaseConsumer}, producer::{Producer,BaseProducer, BaseRecord}, ClientConfig};
+use crate::definitions::consensus_header::Pbft;
+use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::BaseProducer};
 use tokio::time::{timeout, Instant};
-use crate::network::{consume_kafka, ready_state};
-use crate::node_header::NodeMethods;
+use crate::definitions::node_header::NodeMethods;
+use crate::definitions::network_header::Network;
 use rdkafka::Message;
 use std::time::Duration;
 use std::sync::Arc;
-use crate::network_header::{Network, NodeMessage};
 use tokio;
-use crate::node_header::{Node, NodeState, PoolingMetrics, ConcensusMetrics};
+use crate::definitions::node_header::{Node, NodeState, PoolingMetrics, ConcensusMetrics};
 
 // use serde_json::to_string;transaction_header
 
 
 ///         WORK ON CORDINATING THE CONCENSUS STEPS AND PROCESS
-
-impl Network for Node {
-    async fn broadcast_kafka(&self, topic: &str, message: NodeMessage, producer: &BaseProducer){
-        let message = serde_json::to_string(&message).expect("Failed to parse Block");
-
-        producer.send(
-            BaseRecord::to(topic)
-            .payload(&message)
-            .key(&self.id)
-        ).expect("Failed to send message");
-
-        producer.flush(Duration::from_secs(20)).expect("Failed to flush");
-
-        if topic == "Prepare" {
-            producer.send(
-                BaseRecord::to("Status")
-                .payload("Commit")
-                .key(&self.id)
-            ).expect("Failed to send message");
-        }
-
-        producer.flush(Duration::from_secs(20)).expect("Failed to flush");
-    }
-
-    fn consume_kafka(&self, topic: &str) -> Vec<String>{
-        let consumer: BaseConsumer = ClientConfig::new()
-            .set("bootstrap.servers", "localhost:9092")
-            .set("group.id", &(self.id.clone()+"consumer"))
-            .set("enable.auto.commit","true")
-            .create()
-            .expect("Failed to make consumer");
-
-        consumer.subscribe(&[topic]).expect("Subscription Error");
-
-        let timeout = Duration::from_secs(10);
-        let mut message_pool = Vec::new();
-        let mut last_received_time = None;
-
-        loop {
-            // Wait for all the Nodes to broadcast the message
-            // 5 seconds is the timeout after which it will move on to process the messages
-            match consumer.poll(Duration::from_secs(5)) {
-                Some(Ok(message)) => {
-                    if let Some(payload) = message.payload() {
-                        let msg = String::from(std::str::from_utf8(payload).expect("Failed to deserialize message"));
-                        message_pool.push(msg);
-                        last_received_time = Some(Instant::now());
-                    }
-                }
-                _ => continue,
-            }
-            match last_received_time {
-                Some(time) => {
-                    if time.elapsed() > timeout {
-                        break;
-                    }
-                }
-                _ => { continue; }
-            }
-        }
-        message_pool
-    }
-}
 
 impl NodeMethods for Node {
     fn new() -> Self {
@@ -197,10 +133,10 @@ impl NodeMethods for Node {
     }
 
     async fn concensus(&mut self, pool: Vec<Transaction>, pkey_store: HashMap<String, PublicKey>,
-    prepre_con: Arc<StreamConsumer>, pre_con: Arc<StreamConsumer>,
-    prepre_ready: &StreamConsumer, pre_ready: &StreamConsumer, commit_ready: &StreamConsumer,
-    prepre_prod: Arc<BaseProducer>, pre_prod: Arc<BaseProducer>, comm_prod: Arc<BaseProducer>,
-    time_out: u64) -> Option<ConcensusMetrics>{
+        prepre_con: Arc<StreamConsumer>, pre_con: Arc<StreamConsumer>,
+        prepre_ready: &StreamConsumer, pre_ready: &StreamConsumer, commit_ready: &StreamConsumer,
+        prepre_prod: Arc<BaseProducer>, pre_prod: Arc<BaseProducer>, comm_prod: Arc<BaseProducer>,
+        time_out: u64) -> Option<ConcensusMetrics> {
 
         let id = self.id.clone()+"pre";
         let id2 = self.id.clone()+"prep";
@@ -213,14 +149,14 @@ impl NodeMethods for Node {
         let start1 = Instant::now();
 
         let primary_handle = tokio::spawn(async move {
-            consume_kafka(id, hash.to_string(),"Preprepare", &prepre_con_clone, &prepre_prod_clone, time_out).await
+            Node::consume_kafka(id, hash.to_string(),"Preprepare", &prepre_con_clone, &prepre_prod_clone, time_out).await
         });
 
         //  wait for the preprepare message from all nodes here
 
         // tokio::time::sleep(Duration::from_millis(time_out)).await;
 
-        let (a, preprepare_wait) = ready_state(self.validators.len(), String::from("Preprepare"), prepre_ready, time_out).await;
+        let (a, preprepare_wait) = Node::ready_state(self.validators.len(), String::from("Preprepare"), prepre_ready, time_out).await;
 
         if a {self.preprepare_phase(pool, &prepre_prod).await;}
         else {panic!["returned false..."]}
@@ -236,12 +172,12 @@ impl NodeMethods for Node {
         let start2 = Instant::now();
 
         let prepare_handle = tokio::spawn(async move {
-            consume_kafka(id2, hash2.to_string(),"Prepare", &pre_con_clone, &pre_prod_clone, time_out).await
+            Node::consume_kafka(id2, hash2.to_string(),"Prepare", &pre_con_clone, &pre_prod_clone, time_out).await
         });
 
         // tokio::time::sleep(Duration::from_millis(time_out)).await;
 
-        let (b, prepare_wait) = ready_state(self.validators.len(), String::from("Prepare"), pre_ready, time_out).await;
+        let (b, prepare_wait) = Node::ready_state(self.validators.len(), String::from("Prepare"), pre_ready, time_out).await;
 
         if b {self.prepare_phase(&pkey_store, primary_msg, &pre_prod).await;} 
         else {panic!["returned false"];}
@@ -260,7 +196,7 @@ impl NodeMethods for Node {
 
         // tokio::time::sleep(Duration::from_millis(time_out)).await;
 
-        let (c, commit_wait) = ready_state(self.validators.len(), String::from("Commit"), commit_ready, time_out).await;
+        let (c, commit_wait) = Node::ready_state(self.validators.len(), String::from("Commit"), commit_ready, time_out).await;
 
         if c {self.commit_phase(&pkey_store,prepare_msg, &comm_prod).await;}
 

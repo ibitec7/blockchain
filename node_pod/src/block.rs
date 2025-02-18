@@ -3,9 +3,9 @@ use openssl::sha;
 use hex;
 use serde_json::{to_string, from_str};
 
-use crate::transaction_header::Transaction;
-use crate::merkle_header::{MerkleTree, MerkleMethods};
-use crate::block_header::{Block, BlockMethods, BlockChain, BlockChainMethods};
+use crate::definitions::transaction_header::Transaction;
+use crate::definitions::merkle_header::{MerkleTree, MerkleMethods};
+use crate::definitions::block_header::{Block, BlockMethods, BlockChain, BlockChainMethods};
 
 impl BlockMethods for Block {
     fn new(data: Vec<Transaction>, previous_hash: String, idx: u64) -> Self {

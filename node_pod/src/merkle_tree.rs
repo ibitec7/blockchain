@@ -1,7 +1,7 @@
 use openssl::sha::Sha256;
 use std::ops::Deref;
-use crate::merkle_header::{MerkleTree, Proof, MerkleMethods};
-use crate::transaction_header::Transaction;
+use crate::definitions::merkle_header::{MerkleTree, Proof, MerkleMethods};
+use crate::definitions::transaction_header::Transaction;
 
 impl MerkleMethods for MerkleTree {
 
@@ -152,7 +152,7 @@ impl MerkleMethods for MerkleTree {
 
             hash = hasher.finish().to_vec();
         }
-
+        
         hash == *merkle_root
     }
 }

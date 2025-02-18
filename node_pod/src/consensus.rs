@@ -3,9 +3,9 @@ use rdkafka::producer::{BaseProducer, BaseRecord};
 use std::collections::HashMap;
 use rand::Rng;
 use serde_json::{from_str, to_string};
-use crate::{consensus_header::StakeMethods, network_header::{MessageType, MessageTypeMethods, Network, NodeMessage, NodeMessageMethods}, node_header::Node, transaction_header::Transaction};
-use crate::block_header::{Block, BlockMethods, BlockChainMethods};
-use crate::consensus_header::{PoS, Pbft, Stake, Validator, ValidatorMethods};
+use crate::definitions::{consensus_header::StakeMethods, network_header::{MessageType, MessageTypeMethods, Network, NodeMessage, NodeMessageMethods}, node_header::Node, transaction_header::Transaction};
+use crate::definitions::block_header::{Block, BlockMethods, BlockChainMethods};
+use crate::definitions::consensus_header::{PoS, Pbft, Stake, Validator, ValidatorMethods};
 
 impl StakeMethods for Stake {
     fn new(node: &Node, stake: f64) -> Self {
@@ -23,6 +23,18 @@ impl StakeMethods for Stake {
     }
 }
 
+impl ValidatorMethods for Validator {
+    fn serialize(&self) -> String {
+        let json_string = to_string(&self).expect("Failed to serialize");
+        json_string
+    }
+
+    fn deserialize(json_str: String) -> Self {
+        let validator: Validator = from_str(&json_str).expect("Failed to deserialize");
+        validator
+    }
+}
+
 impl PoS for Node {
     async fn propose_stake(&mut self, producer: &BaseProducer){
         let dist = rand::distributions::Uniform::new(10.0, 500.0);
@@ -37,18 +49,6 @@ impl PoS for Node {
             .key("Node Stake");
 
         producer.send(record).expect("Failed to send the stake");
-    }
-}
-
-impl ValidatorMethods for Validator {
-    fn serialize(&self) -> String {
-        let json_string = to_string(&self).expect("Failed to serialize");
-        json_string
-    }
-
-    fn deserialize(json_str: String) -> Self {
-        let validator: Validator = from_str(&json_str).expect("Failed to deserialize");
-        validator
     }
 }
 
