@@ -1,7 +1,7 @@
 use std::{time::UNIX_EPOCH, vec};
 use openssl::sha;
 use hex;
-use serde_json::{to_string, from_str};
+use serde_json::{to_string_pretty, from_str};
 
 use crate::definitions::transaction_header::Transaction;
 use crate::definitions::merkle_header::{MerkleTree, MerkleMethods};
@@ -63,7 +63,7 @@ impl BlockMethods for Block {
     }
 
     fn serialize_block(&self) -> String {
-        let json_string = to_string(&self).expect("Failed to serialize block");
+        let json_string = to_string_pretty(&self).expect("Failed to serialize block");
         json_string
     }
 
@@ -125,12 +125,12 @@ impl BlockChainMethods for BlockChain {
     }
 
     fn serialize(&self) -> String {
-        let json_string = to_string(&self).expect("Failed to serialize Blockchain");
+        let json_string = to_string_pretty(&self).expect("Failed to serialize Blockchain");
         json_string
     }
 
-    fn deserialize(json: String) -> Self {
-        let chain: BlockChain = from_str(&json).expect("Failed to parse JSON");
+    fn deserialize(json: &str) -> Self {
+        let chain: BlockChain = from_str(json).expect("Failed to parse JSON");
         chain
     }
 }
