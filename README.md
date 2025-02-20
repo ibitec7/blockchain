@@ -51,10 +51,10 @@ The project contains the following directories:
 5. Open a new terminal window, create the Kafka topics and listen on the Commit channel to listen for committed blocks
 
 >  
-	kubectl exec -it kafka-0 -- bin/sh -c "chmod +x /usr/local/bin/scripts/*.sh"
-	kubectl exec -it kafka-0  -- bin/sh -c "/usr/local/bin/scripts/create-topic.sh \
+	kubectl exec -it kafka-0 -- bin/bash -c "chmod +x /usr/local/bin/scripts/*.sh"
+	kubectl exec -it kafka-0  -- bin/bash -c "bin/bash /usr/local/bin/scripts/create-topic.sh \
 	Stakes Validators Primary Preprepare Prepare Commit Status Transactions Users"
-	kubectl exec -it kafka-0 -- bin/sh -c "/opt/bitnami/kafka/bin/kafka-console-consumer.sh \ 
+	kubectl exec -it kafka-0 -- bin/bash -c "/bin/bash /opt/bitnami/kafka/bin/kafka-console-consumer.sh \ 
 	--bootstrap-server localhost:9092 --topic Commit --from-beginning"
 	
 **NOTE:** If you want to delete all the topics run this:
