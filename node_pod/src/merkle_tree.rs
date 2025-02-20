@@ -14,9 +14,8 @@ impl MerkleMethods for MerkleTree {
         }
     }
 
-    fn new(data: &Vec<Transaction>) -> Self {
-        let transactions: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> { hex::decode(x.id.clone()).unwrap() }).collect();
-        let leaves = transactions.clone();
+    fn new(data: &[Transaction]) -> Self {
+        let leaves: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> { hex::decode(x.id.clone()).unwrap() }).collect();
 
         let mut nodes = Vec::new();
 
@@ -38,17 +37,15 @@ impl MerkleMethods for MerkleTree {
                 } else {
                     left
                 };
-                let mut combined = left.clone();
-                let mut other = right.clone();
-                combined.append(&mut other);
+
                 let mut hasher = Sha256::new();
-                hasher.update(&combined);
+                hasher.update(left);
+                hasher.update(right);
                 let hash = hasher.finish();
-                let hash_clone = hash.clone();
 
 
-                next_level.push(hash.to_vec());
-                nodes.push(hash_clone.to_vec());
+                next_level.push(hash.clone().to_vec());
+                nodes.push(hash.to_vec());
             }
 
             current_level = next_level.clone();
@@ -72,8 +69,12 @@ impl MerkleMethods for MerkleTree {
         };
 
         while level_size > 2 {
-            let sibling_index = if current_index % 2 == 0 { current_index + 1 } else { current_index - 1 };
-            let hash :Vec<u8>;
+            let sibling_index = match current_index % 2 {
+                0 => current_index + 1,
+                _ => current_index - 1
+            };
+
+            let hash: Vec<u8>;
             match current_index % 2 {
                 0 => {
                     let mut hasher = Sha256::new();
@@ -97,7 +98,7 @@ impl MerkleMethods for MerkleTree {
         Proof { path, leaf_index }
     }
 
-    fn generate_root(data: &Vec<Transaction>) -> Vec<u8> {
+    fn generate_root(data: &[Transaction]) -> Vec<u8> {
         let transactions: Vec<Vec<u8>> = data.iter().map(|x| -> Vec<u8> {hex::decode(x.id.clone()).unwrap()}).collect();
 
         let mut current_level = transactions.clone();
@@ -125,7 +126,7 @@ impl MerkleMethods for MerkleTree {
         current_level.first().expect("Failed to extract the Merkle Root").deref().to_vec()
     }
 
-    fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &Vec<u8>) -> bool {
+    fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &[u8]) -> bool {
         let mut sibling;
         let mut hash = hex::decode(leaf.id).unwrap();
 
