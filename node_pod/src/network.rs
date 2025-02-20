@@ -17,13 +17,13 @@ impl MessageTypeMethods for MessageType {
             &MessageType::Reply(a) => a.to_owned(), 
         };
         
-        return val;
+        val
     }
 }
 
 impl NodeMessageMethods for NodeMessage {
     fn new(node: &Node, block: &Block, msg_type: String, idx: usize) -> Self {
-       let sign = node.sign_message(&block);
+       let sign = node.sign_message(block);
        let msg = match msg_type.to_uppercase().as_str() {
                         "PREPREPARE" => {MessageType::PrePrepare(block.serialize_block())},
                         "PREPARE" => {MessageType::Prepare(block.serialize_block())},
@@ -42,7 +42,7 @@ impl NodeMessageMethods for NodeMessage {
     fn verify_message(self, pub_key: PublicKey) -> bool {
         pub_key.verify(Signature::from_bytes(hex::decode(&self.signature).unwrap().as_slice())
             .expect("Failed to parse the signature"),
-             &self.block.serialize_block())
+             self.block.serialize_block())
     }
 }
 
@@ -124,10 +124,10 @@ impl Network for Node {
             }
         }
         if message_pool.is_empty() {
-            return None;
+            None
         }
         else {
-            return Some(message_pool);
+            Some(message_pool)
         }
     }
 
@@ -176,6 +176,6 @@ impl Network for Node {
             }
             }
         }
-        return (false, 0.0);
+        (false, 0.0)
     }
 }

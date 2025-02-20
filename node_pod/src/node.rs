@@ -29,7 +29,7 @@ impl NodeMethods for Node {
 
         let indexes: Vec<usize> = vec![0,0,0];
 
-        let node = Node { id: id, block_chain: BlockChain::new(), stake: 0.0, state: NodeState::Idle,
+        let node = Node { id, block_chain: BlockChain::new(), stake: 0.0, state: NodeState::Idle,
              staging: vec![], block_staging: vec![], validators: vec![],
             primary: vec![], msg_idx: indexes, private_key: pvt_key };
         node
