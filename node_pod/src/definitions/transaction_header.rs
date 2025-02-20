@@ -15,7 +15,9 @@ pub struct Transaction {
 }
 
 pub trait TransactionMethods {
-    fn deserialize(json_string: &str) -> Self;
+    fn serialize_tx(&self) -> String;
+
+    fn deserialize_tx(json_string: &str) -> Self;
 
     fn hash_tx(self) -> [u8; 32];
 

@@ -46,6 +46,6 @@ pub trait BlockChainMethods {
 
     fn serialize(&self) -> String;
 
-    fn deserialize(json: String) -> Self;
+    fn deserialize(json: &str) -> Self;
 
 }
