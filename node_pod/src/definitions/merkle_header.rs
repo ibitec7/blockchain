@@ -19,12 +19,12 @@ pub trait MerkleMethods {
 
     fn new_genesis() -> Self;
 
-    fn new(data: &Vec<Transaction>) -> Self;
+    fn new(data: &[Transaction]) -> Self;
 
     fn generate_proof(&self, target: &Transaction) -> Proof;
 
-    fn generate_root(data: &Vec<Transaction>) -> Vec<u8>;
+    fn generate_root(data: &[Transaction]) -> Vec<u8>;
 
-    fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &Vec<u8>) -> bool;
+    fn validate_proof(proof: &Proof, leaf: Transaction, merkle_root: &[u8]) -> bool;
 
 }
