@@ -9,7 +9,6 @@ use tokio::time::{timeout, Instant};
 use crate::definitions::node_header::{ConcensusMetrics, PoolingMetrics, Node, NodeMethods};
 use std::sync::Arc;
 use tokio::fs;
-use serde_yaml;
 use serde::{Serialize as SerdeSerialize, Deserialize};
 use crate::definitions::transaction_header::Transaction;
 use bls_signatures::{PublicKey, Serialize};
@@ -19,7 +18,6 @@ use csv::Writer;
 ///     WORK ON THE STEPS THAT WILL BE DONE BY THE NODES
 ///     IN PARTICULAR HOW THEY WILL LISTEN FOR VALIDATORS TO UPDATE THE VALIDATORS LIST AND PRIMARIES
 ///     ALSO HOW THEY WILL LISTEN FOR USERS TO GET USER PUB KEYS
-
 mod consensus;
 mod network;
 mod tests;
