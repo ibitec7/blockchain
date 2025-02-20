@@ -13,8 +13,7 @@ impl StakeMethods for Stake {
     }
 
     fn serialize(&self) -> String {
-        let json_string = to_string(&self).expect("Failed to serialize");
-        json_string
+        to_string(&self).expect("Failed to serialize")
     }
 
     fn deserialize(json_str: String) -> Self {
@@ -25,13 +24,11 @@ impl StakeMethods for Stake {
 
 impl ValidatorMethods for Validator {
     fn serialize(&self) -> String {
-        let json_string = to_string(&self).expect("Failed to serialize");
-        json_string
+        to_string(&self).expect("Failed to serialize")
     }
 
     fn deserialize(json_str: String) -> Self {
-        let validator: Validator = from_str(&json_str).expect("Failed to deserialize");
-        validator
+        from_str(&json_str).expect("Failed to deserialize")
     }
 }
 
@@ -70,7 +67,7 @@ impl Pbft for Node {
             } else { continue; }
         }
         if is_primary {
-            let message = NodeMessage::new(self, &block, String::from("Preprepare"), self.msg_idx[0].clone());
+            let message = NodeMessage::new(self, &block, String::from("Preprepare"), self.msg_idx[0]);
 
             self.block_staging.push(block);
 
@@ -106,10 +103,7 @@ impl Pbft for Node {
 
         for msg in messages {
             let is_leader: bool = self.primary.iter().any(|validator| validator.node_id == msg.sender_id);
-            let is_preprepare = match msg.msg_type {
-                MessageType::PrePrepare(_) => true,
-                _ => false
-            };
+            let is_preprepare = matches!(msg.msg_type, MessageType::PrePrepare(_));
 
             let pkey = pkey_store.get(&msg.sender_id).expect("Sender is not in Key Store");
             let verify_leader = pkey.verify(bls_signatures::Signature::from_bytes(
@@ -122,7 +116,7 @@ impl Pbft for Node {
 
                 if verify_block {
                     let kafka_message: NodeMessage = NodeMessage::new(self,
-                        &self.block_staging[msg.seq_num.clone()].clone(), String::from("Prepare"), self.msg_idx[1]);
+                        &self.block_staging[msg.seq_num].clone(), String::from("Prepare"), self.msg_idx[1]);
 
                     self.broadcast_kafka("Prepare", kafka_message, producer).await;
 
@@ -177,10 +171,8 @@ impl Pbft for Node {
 
         for msg in messages {
             let is_validator = self.validators.iter().any(|validator| validator.node_id == msg.sender_id);
-            let is_prepare = match msg.msg_type {
-                MessageType::Prepare(_) => true,
-                _ => false
-            };
+            let is_prepare = matches!(msg.msg_type, MessageType::Prepare(_));
+
             let pkey = pkey_store.get(&msg.sender_id).expect("Sender is not in the key store");
             let verify_sender = pkey.verify(bls_signatures::Signature::from_bytes(
                 &hex::decode(msg.signature).unwrap()).unwrap()
@@ -189,11 +181,11 @@ impl Pbft for Node {
             let new_block: Block = Block::deserialize_block(&msg.msg_type.unwrap());
             
             if is_validator && is_prepare && verify_sender {
-                if blocks.len() == 0 && new_block.validate(new_block.transactions.clone()) {
+                if blocks.is_empty() && new_block.validate(new_block.transactions.clone()) {
                     blocks.push(new_block);
                     counts.push(1);
                 }
-                else if blocks.len() != 0 {
+                else if !blocks.is_empty() {
                     let mut found = false;
                     for i in 0..blocks.len() {
                         if blocks[i].is_equal(new_block.clone()){
@@ -226,17 +218,14 @@ impl Pbft for Node {
         let max_idx = counts.iter().position(|x| x == max_count).unwrap();
 
         let mut a: i32 = 0;
-        for i in 0..counts.len() {
-            if counts[i] == *max_count {
+        for item in &counts {
+            if *item == *max_count {
                 a += 1;
             }
         }
 
         if a != 1 {
             panic!["Concensus Not reached more than one majority on different blocks"];
-        }
-        else {
-
         }
 
         let new_block: Block = blocks[max_idx].to_owned();
