@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: node-container
-        image: ibitec/node-pod:node4
+        image: ibitec/blockchain:node-pod-beta
         env:
         - name: BOOTSTRAP_SERVERS
           value: kafka.default.svc.cluster.local:9092

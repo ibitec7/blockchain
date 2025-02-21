@@ -10,7 +10,7 @@ spec:
     spec:
       containers:
       - name: tx-container
-        image: ibitec/tx-pod:tx3
+        image: ibitec/blockchain:tx-pod-beta
         env:
         - name: BOOTSTRAP_SERVERS
           value: kafka.default.svc.cluster.local:9092
