@@ -1,5 +1,4 @@
-use futures_util::Stream;
-use rdkafka::consumer::{Consumer, DefaultConsumerContext, MessageStream, StreamConsumer};
+use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{BaseProducer, BaseRecord};
 use stake::Validator;
 use rdkafka::ClientConfig;
