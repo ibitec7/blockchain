@@ -3,6 +3,7 @@ use rdkafka::producer::{BaseProducer, BaseRecord};
 use std::collections::HashMap;
 use rand::Rng;
 use serde_json::{from_str, to_string};
+use log::info;
 use crate::definitions::{consensus_header::StakeMethods, network_header::{MessageType, MessageTypeMethods, Network, NodeMessage, NodeMessageMethods}, node_header::Node, transaction_header::Transaction};
 use crate::definitions::block_header::{Block, BlockMethods, BlockChainMethods};
 use crate::definitions::consensus_header::{PoS, Pbft, Stake, Validator, ValidatorMethods};
@@ -45,12 +46,15 @@ impl PoS for Node {
             .payload(&record_json)
             .key("Node Stake");
 
+        info!("Sent stake of {}", self.stake);
         producer.send(record).expect("Failed to send the stake");
     }
 }
 
 impl Pbft for Node {
     async fn preprepare_phase (&mut self, pool: Vec<Transaction>, producer: &BaseProducer) {
+
+        info!("Entered Preprepare Phase");
 
         self.staging = pool.clone();
 
@@ -63,7 +67,8 @@ impl Pbft for Node {
         let mut is_primary = false;
         for leader in primary {
             if leader.node_id == id {
-                is_primary = true
+                is_primary = true;
+                info!("I am the primary");
             } else { continue; }
         }
         if is_primary {
@@ -71,9 +76,13 @@ impl Pbft for Node {
 
             self.block_staging.push(block);
 
+            info!("Broadcasting Preprepare message");
+
             self.broadcast_kafka("Preprepare", message, producer).await;
         }
         else {
+            info!("Pushed block to staging");
+
             self.block_staging.push(block);
         }
 
@@ -81,6 +90,8 @@ impl Pbft for Node {
     }
 
     async fn prepare_phase(&mut self, pkey_store: &HashMap<String, PublicKey>, primary_msg: Vec<String>, producer: &BaseProducer) {
+        
+        info!("Entered Prepare Phase");
         
         let mut messages: Vec<NodeMessage> = vec![];
         
@@ -111,14 +122,20 @@ impl Pbft for Node {
                 , msg.msg_type.unwrap());
 
             if is_leader && is_preprepare && verify_leader {
+                info!("Verified Leader");
+
                 let new_block: Block = Block::deserialize_block(&msg.msg_type.unwrap());
                 let verify_block: bool = self.block_staging.last().unwrap().is_equal(new_block);
 
                 if verify_block {
+                    info!("Verified Block");
+
                     let kafka_message: NodeMessage = NodeMessage::new(self,
                         &self.block_staging[msg.seq_num].clone(), String::from("Prepare"), self.msg_idx[1]);
 
                     self.broadcast_kafka("Prepare", kafka_message, producer).await;
+
+                    info!("Broadcasted Prepare message");
 
                     self.msg_idx[1] += 1;
                 }
@@ -140,6 +157,8 @@ impl Pbft for Node {
 
     async fn commit_phase(&mut self, pkey_store: &HashMap<String, PublicKey>, prepare_msg: Vec<String>, producer: &BaseProducer) -> bool {
 
+        info!("Entered Commit Phase");
+        
         let mut messages: Vec<NodeMessage> = vec![];
 
         // Count the number of blocks that are same
@@ -181,6 +200,8 @@ impl Pbft for Node {
             let new_block: Block = Block::deserialize_block(&msg.msg_type.unwrap());
             
             if is_validator && is_prepare && verify_sender {
+                info!("Verified Validator");
+
                 if blocks.is_empty() && new_block.validate(new_block.transactions.clone()) {
                     blocks.push(new_block);
                     counts.push(1);
@@ -235,6 +256,8 @@ impl Pbft for Node {
             &new_block.clone(), String::from("Commit"), self.msg_idx[2]);
 
         self.broadcast_kafka("Commit", kafka_message, producer).await;
+
+        info!("Broadcasted Commit message");
 
         self.msg_idx[2] += 1;
 

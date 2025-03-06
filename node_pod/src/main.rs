@@ -3,6 +3,7 @@ use rdkafka::producer::BaseProducer;
 use rdkafka::ClientConfig;
 use simulate::User;
 use std::time::Duration;
+use log::{error, info};
 use rdkafka::Message;
 use futures_util::stream::StreamExt;
 use tokio::time::{timeout, Instant};
@@ -104,6 +105,8 @@ pub async fn listen_user(consumer: &StreamConsumer, time_out: &u64) -> Vec<User>
 }
 
 pub async fn listen_validators(consumer: &StreamConsumer, time_out: &u64) -> Vec<Validator> {
+    info!("Listening for validators");
+
     let mut validators: Vec<Validator> = vec![];
 
     let mut msg_stream = consumer.stream();
@@ -142,6 +145,9 @@ pub async fn listen_validators(consumer: &StreamConsumer, time_out: &u64) -> Vec
         }
         }
     }
+
+    info!("Finished listening for validators");
+
     validators
 }
 
@@ -357,6 +363,8 @@ async fn main() {
     let mut pool_metrics: Option<PoolingMetrics>;
     let mut concensus_metrics: Option<ConcensusMetrics>;
     loop {
+        info!("Entering block creation round");
+
         let start1 = Instant::now();
 
         let (_, validators, primary) = tokio::join!(
@@ -366,7 +374,18 @@ async fn main() {
         );
 
         node.validators = validators;
+
+        match node.validators.is_empty() {
+            true => error!("Did not receive validators"),
+            false => info!("Received validators")
+        };
+
         node.primary = primary;
+
+        match node.primary.is_empty() {
+            true => error!("Did not select primary"),
+            false => info!("Selected primary")
+        };
 
         let mut pkey_store: HashMap<String, PublicKey> = HashMap::new();
 
@@ -374,11 +393,22 @@ async fn main() {
             pkey_store.insert(val.node_id, PublicKey::from_bytes(hex::decode(val.public_key).unwrap().as_slice()).unwrap());
         }
 
+        info!("Created validator public key store");
+
         let end1 = start1.elapsed().as_millis() as f64;
+
+        info!("Started pooling the transactions");
 
         (pool, resid, pool_metrics) = node.pool_transactions(&tx_consumer, &mut user_base, 
         &mut resid,config.performance.timeout, config.performance.tx_time,
         &config.performance.block_size).await;
+
+        match pool.is_none() {
+            true => error!("Did not receive transactions"),
+            false => info!("Received transactions")
+        };
+
+        info!("Finished pooling the transactions");
 
         let pool_perf = pool_metrics.unwrap();
 
@@ -390,12 +420,16 @@ async fn main() {
         
         let start = Instant::now();
 
+        info!("Started concensus protocol");
+
         match pool {
             Option::None => {panic!["No pool continuing"]},
             Some(tx_pool) =>  {concensus_metrics = node.concensus(tx_pool, pkey_store,
             prepre_con_clone, pre_con_clone, &prepre_ready, &pre_ready, &comm_ready,
         prepre_prod_clone, pre_prod_clone, comm_prod_clone,config.performance.timeout).await}
         };
+
+        info!("Finished concensus protocol");
 
         let concensus_perf = concensus_metrics.unwrap();
         let end = start.elapsed().as_millis() as f64;

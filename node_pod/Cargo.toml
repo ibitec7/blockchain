@@ -17,6 +17,7 @@ tokio = { version = "1.42.0", features = ["full"] }
 rdkafka = "0.37.0"
 serde_yaml = "*"
 csv = "*"
+log = "*"
 ring = "0.17.8"
 
 [profile.release]

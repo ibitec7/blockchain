@@ -3,6 +3,7 @@ use bls_signatures::{PrivateKey, PublicKey, Serialize};
 use ring::signature::{UnparsedPublicKey, ED25519};
 use futures_util::StreamExt;
 use std::collections::HashMap;
+use log::info;
 use crate::definitions::consensus_header::Pbft;
 use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::BaseProducer};
 use tokio::time::{timeout, Instant};
@@ -148,6 +149,8 @@ impl NodeMethods for Node {
 
         let start1 = Instant::now();
 
+        info!("Started primary listening handle");
+
         let primary_handle = tokio::spawn(async move {
             Node::consume_kafka(id, hash.to_string(),"Preprepare", &prepre_con_clone, &prepre_prod_clone, time_out).await
         });
@@ -155,6 +158,8 @@ impl NodeMethods for Node {
         //  wait for the preprepare message from all nodes here
 
         // tokio::time::sleep(Duration::from_millis(time_out)).await;
+
+        info!("Sarted listening for other nodes to sync in with primary handle");
 
         let (a, preprepare_wait) = Node::ready_state(self.validators.len(), String::from("Preprepare"), prepre_ready, time_out).await;
 

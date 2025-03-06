@@ -1,4 +1,5 @@
 use bls_signatures::{PublicKey, Serialize, Signature};
+use log::{info,error};
 use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::{BaseProducer, BaseRecord, Producer}};
 use rdkafka::message::Message;
 use tokio::time::timeout;
@@ -48,6 +49,8 @@ impl NodeMessageMethods for NodeMessage {
 
 impl Network for Node {
     async fn broadcast_kafka(&self, topic: &str, message: NodeMessage, producer: &BaseProducer){
+        info!("Brodcasting message to topic: {}", topic);
+
         let message = serde_json::to_string(&message).expect("Failed to parse Block");
 
         producer.send(
@@ -66,10 +69,13 @@ impl Network for Node {
             ).expect("Failed to send message");
         }
 
-        producer.flush(Duration::from_secs(20)).expect("Failed to flush");
+        producer.flush(Duration::from_secs(2)).expect("Failed to flush");
+        info!("Message broadcasted");
     }
 
     async fn consume_kafka(id: String, hash: String, topic: &str, consumer: &StreamConsumer, producer: &BaseProducer,time_out: u64) -> Option<Vec<String>>{
+
+        info!("Listening to topic: {}", topic);
 
         let prod_id = id + &hash + topic;
 
@@ -90,7 +96,7 @@ impl Network for Node {
                     .key(&prod_id)
                 ).expect("Failed to send message");
         
-                producer.flush(Duration::from_secs(20)).expect("Failed to flush");
+                producer.flush(Duration::from_secs(2)).expect("Failed to flush");
 
                 first = false;
             }
@@ -131,7 +137,10 @@ impl Network for Node {
         }
     }
 
+    // Listen for status of peer nodes before proceeding
     async fn ready_state(thresh: usize, topic: String, consumer: &StreamConsumer, time_out: u64) -> (bool, f64) {
+
+        info!("Listening for readiness on topic: {}", topic);
 
         let mut msg_stream = consumer.stream();
 
@@ -144,6 +153,7 @@ impl Network for Node {
         loop {
             if message_pool.len() == thresh {
                 let end_time = start.elapsed().as_millis() as f64;
+                info!("All nodes are ready");
                 return (true, end_time);
             }
 
@@ -176,6 +186,8 @@ impl Network for Node {
             }
             }
         }
+
+        error!("Not all nodes are ready, synchronization failed");
         (false, 0.0)
     }
 }
