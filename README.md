@@ -40,15 +40,8 @@ The project contains the following directories:
 	kubectl get pods -w
 
 
-
-4. Apply all the deployments and ConfigMaps and wait for the containers to finish creating (should take about 5 minutes or a bit more)
-
-> 
-	kubectl apply -f node_deployment/conf
-	kubectl apply -f node_deployment/
-	kubectl get pods -w
 	
-5. Open a new terminal window, create the Kafka topics and listen on the Commit channel to listen for committed blocks
+4. Open a new terminal window, create the Kafka topics and listen on the Commit channel to listen for committed blocks
 
 >  
 	kubectl exec -it kafka-0 -- bin/bash -c "chmod +x /usr/local/bin/scripts/*.sh"
@@ -56,6 +49,15 @@ The project contains the following directories:
 	Stakes Validators Primary Preprepare Prepare Commit Status Transactions Users"
 	kubectl exec -it kafka-0 -- bin/bash -c "/bin/bash /opt/bitnami/kafka/bin/kafka-console-consumer.sh \
 	--bootstrap-server localhost:9092 --topic Commit --from-beginning"
+
+
+
+5. Apply all the deployments and ConfigMaps and wait for the containers to finish creating (should take about 5 minutes or a bit more)
+
+> 
+	kubectl apply -f node_deployment/conf
+	kubectl apply -f node_deployment/
+	kubectl get pods -w
 	
 **NOTE:** If you want to delete all the topics run this:
 
