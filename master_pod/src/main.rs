@@ -6,6 +6,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use rdkafka::Message;
 use rand::Rng;
+use log::info;
 use rand_distr::{Distribution, WeightedIndex};
 use futures_util::stream::StreamExt;
 use tokio::time::timeout;
@@ -53,6 +54,8 @@ pub struct Config {
 }
 
 pub async fn load_config() -> Option<Config> {
+    info!("Loading config");
+
     let path = "src/config.yaml";
 
     let config_content = fs::read_to_string(&path).await.expect("Failed to read file");
@@ -65,7 +68,8 @@ pub async fn load_config() -> Option<Config> {
 
 pub async fn listen_stake(consumer: &StreamConsumer, time_out: u64,
 vals: &usize) -> Option<Vec<Stake>> {
-    // println!("Listening for the stakes");
+
+    info!("Listening for the stakes");
     let mut stakes: Vec<Stake> = vec![];
 
     let mut msg_stream = consumer.stream();
@@ -119,6 +123,9 @@ fn validator_selection(
     producer2: &BaseProducer,
     time_out: u64,
 ) {
+
+    info!("Selecting validators");
+
     let weights: Vec<f64> = stakes.iter().map(|s| s.stake).collect();
     let mut rng = rand::thread_rng();
     let dist = WeightedIndex::new(&weights).expect("Invalid weights");
@@ -142,7 +149,7 @@ fn validator_selection(
 
     for val in &validators {
         let record_json = val.serialize();
-        println!("Validator: {}", record_json);
+        info!("Validator: {}", record_json);
         producer
             .send(
                 BaseRecord::to("Validators")
@@ -206,8 +213,12 @@ async fn main() {
 
         match stakes {
             Option::None => continue,
-            Some(stakes_vec) => validator_selection(&stakes_vec.as_slice(), config.staking.validators, &producer,
-            &producer2,config.performance.timeout),
+            Some(stakes_vec) => {
+                info!("Stakes received");
+                validator_selection(&stakes_vec.as_slice(), config.staking.validators, &producer,
+            &producer2,config.performance.timeout);
+                info!("Validators selected");
+        },
         }
     }
 }
