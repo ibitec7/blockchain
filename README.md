@@ -4,7 +4,7 @@
 
 This is a proof-of-concept implementation of the proposed blockchain architecture from the paper **Redefining Hybrid Blockchains: A Balanced Architecture** by Syed Ibrahim Omer. This is research code and may contain issues and lack certain functionalities.
 
-> **WARN:** If the implementation happens to not work check if you are not running the pods under testing. Check the deployment files under the path node_deployment/ and remove the "-beta" postfix for all the deployments so for instance make it "node-pod" from "node-pod-beta". A new implementation is being tested which is not yet ready to be commited.
+> **WARN:** If the implementation happens to not work check if you are running the pods under testing. Check the deployment files under the path node_deployment/ and remove the "-beta" postfix for all the deployments so for instance make it "node-pod" from "node-pod-beta". A new implementation is being tested which is not yet ready to be commited.
 
 **DO NOT USE THIS PROJECT IN A PRODUCTION ENVIRONMENT** 
 
