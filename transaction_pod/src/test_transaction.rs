@@ -3,7 +3,10 @@
 mod tests {
     use crate::tx_mod::{Transaction, generate_key_pair};
     use crate::tx_mod::TransactionMethods;
-use crate::simulate::{User, UserMessage};
+    use rand::rngs::StdRng;
+    use rand::{Rng, SeedableRng};
+    use rand::distributions::Uniform;
+    use crate::simulate::{User, UserMessage};
 
     #[test]
     fn test_transaction_new_and_id_generation() {
@@ -87,4 +90,40 @@ use crate::simulate::{User, UserMessage};
         let expected_fee = 0.01 * tx.amount;
         assert!((tx.fee - expected_fee).abs() < f64::EPSILON, "Transaction fee should be 1% of the amount");
     }
+
+    #[test]
+    fn transaction_simulation() {
+
+        let mut user_base = vec![];
+        let mut user_ids = vec![];
+
+        for user_id in 0..10 {
+            let user = User::new();
+            assert!(!user.user_id.is_empty(), "User ID should not be empty");
+            assert_eq!(user.balance, 42000.0, "User should have the default balance");
+
+            user_ids.push(user.user_id.clone());
+            user_base.push(user);
+        }
+
+        let dist = Uniform::new(0, user_base.len() - 1);
+
+        let mut rng = {
+            let rng = rand::thread_rng();
+            StdRng::from_rng(rng).unwrap()
+        };
+
+        let idx = rng.sample(dist);
+
+        let tx = user_base[idx].simulate_transaction(user_ids.clone());
+
+        let tx_record = tx.serialize();
+
+        let tx_deserialized = Transaction::deserialize(&tx_record);
+
+        assert!(tx_deserialized.verify_transaction(tx_deserialized.from.clone()), "Valid signature should verify");
+
+
+    }
+
 }

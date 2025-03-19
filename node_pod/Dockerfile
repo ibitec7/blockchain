@@ -1,9 +1,9 @@
-FROM ubuntu:24.04
+FROM rust:1.84.1
 WORKDIR /app
 
-COPY ./src/config.yaml ./src/config.yaml
-COPY ./target/release/node_pod ./target/release/node_pod
+COPY . .
+RUN cargo build --release
 
 EXPOSE 9092
 
-CMD ["./target/release/node_pod"]
+CMD ["cargo", "run", "--release"]

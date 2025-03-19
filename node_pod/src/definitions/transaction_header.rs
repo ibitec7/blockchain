@@ -1,6 +1,5 @@
 
 use serde::{Serialize, Deserialize};
-use ring::signature::UnparsedPublicKey;
 
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug, PartialEq)]
@@ -23,5 +22,5 @@ pub trait TransactionMethods {
 
     fn is_equal(self, tx: Transaction) -> bool;
 
-    fn verify_transaction(&self, public_key: UnparsedPublicKey<Vec<u8>>) -> bool;
+    fn verify_transaction(&self) -> bool;
 }

@@ -18,6 +18,7 @@ rdkafka = "0.37.0"
 serde_yaml = "*"
 csv = "*"
 log = "*"
+env_logger = "*"
 ring = "0.17.8"
 
 [profile.release]

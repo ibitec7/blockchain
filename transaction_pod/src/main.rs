@@ -1,8 +1,10 @@
+use futures::StreamExt;
 use rand::{distributions::Uniform, rngs::StdRng, SeedableRng};
-use rdkafka::{producer::{BaseProducer,  BaseRecord}, ClientConfig};
+use rdkafka::{consumer::{Consumer, StreamConsumer}, producer::{BaseProducer,  BaseRecord}, ClientConfig, Message};
 use simulate::User;
 use rand::Rng;
 use std::time::Instant;
+use tokio::time::timeout;
 use std::time::Duration;
 use serde::Deserialize;
 use serde_yaml;
@@ -44,6 +46,34 @@ pub async fn load_config() -> Option<Config> {
     Some(config)
 }
 
+async fn ready_state(topic: String, consumer: &StreamConsumer) -> bool {
+    let mut msg_stream = consumer.stream();
+
+    loop {
+        match timeout(Duration::from_secs(10), msg_stream.next()).await {
+            Ok(Some(message_result)) => {
+                match message_result {
+                    Err(e) => eprintln!("Error while receiving message: {}", e),
+                    Ok(message) => {
+                        if let Some(payload) = message.payload() {
+                            let msg = String::from(std::str::from_utf8(payload).expect("Failed to deserialize message"));
+                            if msg == topic {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                eprintln!("No message received");
+            }
+            Err(_) => {
+                eprintln!("Timeout");
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let mut user_base = vec![];
@@ -69,6 +99,7 @@ async fn main() {
     }
 
     let dist = Uniform::new(0, user_base.len() - 1);
+
     let producer: BaseProducer = ClientConfig::new()
         .set("bootstrap.servers", &config.producer.server)
         .set("acks", &config.producer.acks)
@@ -117,6 +148,21 @@ async fn main() {
             transactions.push(record);
             transaction_batch = vec![];
         }
+    }
+
+    let consumer: StreamConsumer = ClientConfig::new()
+        .set("group.id", "sim")
+        .set("bootstrap.servers", &config.producer.server)
+        .set("auto.offset.reset", "earliest")
+        .create()
+        .expect("Failed to create consumer");
+
+    consumer.subscribe(&["Ready"]).expect("Failed to subscribe to topic");
+
+    let ready = ready_state(String::from("Ready"), &consumer).await;
+
+    if !ready {
+        panic!["Failed to reach ready state"];
     }
 
     let start = Instant::now();

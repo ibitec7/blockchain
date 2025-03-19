@@ -15,8 +15,9 @@ hex = "0.4.3"
 futures-util = "0.3.31"
 tokio = { version = "1.42.0", features = ["full"] }
 rdkafka = "0.37.0"
-rand_distr = "*"
+rand_distr = "0.4.3"
 log = "*"
+env_logger = "*"
 serde_yaml = "*"
 
 [profile.release]

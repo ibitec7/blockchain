@@ -2,6 +2,8 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{BaseProducer, BaseRecord};
 use stake::Validator;
 use rdkafka::ClientConfig;
+use std::env;
+use env_logger;
 use std::time::Duration;
 use serde::Deserialize;
 use rdkafka::Message;
@@ -121,6 +123,7 @@ fn validator_selection(
     vals: usize,
     producer: &BaseProducer,
     producer2: &BaseProducer,
+    producer_ready: &BaseProducer,
     time_out: u64,
 ) {
 
@@ -169,10 +172,23 @@ fn validator_selection(
                 .key(&primary.node_id),
         )
         .expect("Failed to send primary message");
+
+    let signal: String = String::from("Ready");
+
+    producer_ready
+        .send(
+            BaseRecord::to("Ready")
+                .payload(&signal)
+                .key(&primary.node_id),
+        )
+        .expect("Failed to send primary message");
 }
 
 #[tokio::main]
 async fn main() {
+    env::set_var("RUST_LOG", "info");
+    env_logger::init();
+
     let config = load_config().await.unwrap();
 
     let consumer: StreamConsumer = ClientConfig::new()
@@ -206,6 +222,17 @@ async fn main() {
         .create()
         .expect("Failed to create producer");
 
+    let producer_ready: BaseProducer = ClientConfig::new()
+        .set("bootstrap.servers", &config.producer.server)
+        .set("group.id", "master_id")
+        .set("acks", &config.producer.acks)
+        .set("linger.ms", &config.producer.lingerms)
+        .set("batch.size", &config.producer.batchsize)
+        .set("compression.type", &config.producer.compressiontype)
+        .set("enable.auto.commit",&config.producer.autocommit)
+        .create()
+        .expect("Failed to create producer");
+
     consumer.subscribe(&["Stakes"]).expect("Failed to subscribe to topic");
     
     loop {
@@ -216,7 +243,7 @@ async fn main() {
             Some(stakes_vec) => {
                 info!("Stakes received");
                 validator_selection(&stakes_vec.as_slice(), config.staking.validators, &producer,
-            &producer2,config.performance.timeout);
+            &producer2, &producer_ready,config.performance.timeout);
                 info!("Validators selected");
         },
         }

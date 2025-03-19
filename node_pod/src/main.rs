@@ -4,6 +4,8 @@ use rdkafka::ClientConfig;
 use simulate::User;
 use std::time::Duration;
 use log::{error, info};
+use std::env;
+use env_logger;
 use rdkafka::Message;
 use futures_util::stream::StreamExt;
 use tokio::time::{timeout, Instant};
@@ -63,6 +65,7 @@ pub struct Config{
 }
 
 pub async fn listen_user(consumer: &StreamConsumer, time_out: &u64) -> Vec<User> {
+
     let mut users: Vec<User> = vec![];
 
     let mut msg_stream = consumer.stream();
@@ -156,7 +159,7 @@ pub async fn load_config() -> Option<Config> {
 
     let config_content = fs::read_to_string(&path).await.expect("Failed to read file");
 
-    let config =serde_yaml::from_str(&config_content).expect("Failed to parse yaml file");
+    let config = serde_yaml::from_str(&config_content).expect("Failed to parse yaml file");
 
     config
 }
@@ -181,6 +184,11 @@ pub struct Record {
 
 #[tokio::main]
 async fn main() {
+    env::set_var("RUST_LOG", "info");
+    env_logger::init();
+
+    info!("Starting node");
+
     let mut node = Node::new();
 
     let config = load_config().await.unwrap();
@@ -254,7 +262,6 @@ async fn main() {
     .set("group.id", &(node.id.clone()+"Preprepare"))
     .set("enable.auto.commit",&config.consumer.autocommit)
     .set("auto.offset.reset", &config.consumer.autooffset)
-    .set("acks", &config.consumer.acks)
     .create()
     .expect("Failed to create stream consumer"));
 
@@ -265,7 +272,6 @@ async fn main() {
     .set("group.id", &(node.id.clone()+"prepre_ready"))
     .set("enable.auto.commit",&config.consumer.autocommit)
     .set("auto.offset.reset", &config.consumer.autooffset)
-    .set("acks", &config.consumer.acks)
     .create()
     .expect("Failed to create stream consumer");
 
@@ -276,7 +282,6 @@ async fn main() {
     .set("group.id", &(node.id.clone()+"Prepare"))
     .set("enable.auto.commit",&config.consumer.autocommit)
     .set("auto.offset.reset", &config.consumer.autooffset)
-    .set("acks", &config.consumer.acks)
     .create()
     .expect("Failed to create stream consumer"));
 
@@ -349,7 +354,6 @@ async fn main() {
     .set("group.id", &(node.id.clone()+"tx"))
     .set("enable.auto.commit",&config.consumer.autocommit)
     .set("auto.offset.reset", &config.consumer.autooffset)
-    .set("acks", &config.consumer.acks)
     .set("fetch.min.bytes", "1024")
     .create()
     .expect("Failed to create stream consumer");

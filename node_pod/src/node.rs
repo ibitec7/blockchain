@@ -1,6 +1,5 @@
 use crate::definitions::{block_header::{Block, BlockChain, BlockMethods, BlockChainMethods}, transaction_header::{Transaction, TransactionMethods}};
 use bls_signatures::{PrivateKey, PublicKey, Serialize};
-use ring::signature::{UnparsedPublicKey, ED25519};
 use futures_util::StreamExt;
 use std::collections::HashMap;
 use log::info;
@@ -47,6 +46,8 @@ impl NodeMethods for Node {
          residual: &mut Vec<Transaction>, time_out: u64, tx_time: u64, block_size: &usize) -> 
          (Option<Vec<Transaction>>,Vec<Transaction>, Option<PoolingMetrics>){
 
+        println!("Pooling transactions");
+
         let mut pool: Vec<Transaction> = Vec::with_capacity(*block_size);
 
         let mut message_stream = consumer.stream();
@@ -61,6 +62,8 @@ impl NodeMethods for Node {
                 match message_result {
                     Err(_) => panic!["Error while receiving message"],
                     Ok(message) => {
+                            println!("Received message from Kafka");
+
                             if let Some(payload) = message.payload() {
                                 let transaction_result: Result<Vec<Transaction>, _> = serde_json::from_slice(payload);
                                 match transaction_result{
@@ -74,6 +77,8 @@ impl NodeMethods for Node {
 
                                         residual.append(&mut transaction_vec);
                                         if residual.len() > *block_size {
+                                            println!("Residual transactions are more than block size");
+                                            
                                             let s1 = Instant::now();
                                             let mut a: f64 = 0.0;
                                             for transaction in residual.clone() {
@@ -84,14 +89,16 @@ impl NodeMethods for Node {
                                                     continue;
                                                 }
 
-                                                let pub_key_bytes = hex::decode(&transaction.from).unwrap();
-                                                let public_key = UnparsedPublicKey::new(&ED25519, pub_key_bytes);
-                                                if transaction.verify_transaction(public_key) == true {
+                                                if transaction.verify_transaction() == true {
+                                                    info!("Transaction verified pushing to the pool");
+
                                                     let new_balance = balance - transaction.amount - transaction.fee;
                                                     user_base.insert(transaction.from.clone(), new_balance);
                                                     pool.push(transaction.to_owned());
                                                 } else { continue; }
                                                 if pool.len() == *block_size { 
+                                                    info!("Pool is full");
+
                                                     let end = s1.elapsed().as_millis() as f64;
                                                     let tps = 1000.0 * (a / (start.elapsed().as_millis() as f64));
                                                     let ttf = ttf_start.elapsed().as_millis() as f64;
@@ -103,6 +110,7 @@ impl NodeMethods for Node {
                                                 } else { continue; }
                                             }
                                         }
+                                        else { continue; }
                                     }
                                     Err(_) => {
                                         panic!["Failed to deserialize message"];

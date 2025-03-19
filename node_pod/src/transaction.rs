@@ -2,6 +2,8 @@ use serde_json::{self, to_string_pretty};
 use ring::signature::UnparsedPublicKey;
 use openssl::sha;
 use crate::definitions::transaction_header::{Transaction, TransactionMethods};
+use ring::signature;
+use serde_json::to_string;
 
 impl TransactionMethods for Transaction {
 
@@ -41,16 +43,21 @@ impl TransactionMethods for Transaction {
         predicate
     }
 
-    fn verify_transaction(&self, public_key: UnparsedPublicKey<Vec<u8>>) -> bool{
+    fn verify_transaction(&self) -> bool{
         let mut temp_tx = self.clone();
         temp_tx.signature = String::new();
-        let msg = serde_json::to_string_pretty(&temp_tx).expect("Failed to parse transaction");
+        let msg = to_string(&temp_tx).expect("Failed to parse transaction");
 
-        let verify = public_key.verify(msg.as_bytes() ,hex::decode(&self.signature).unwrap().as_slice());
+        let public_key_bytes = hex::decode(temp_tx.from).unwrap();
+        let pub_slice = public_key_bytes.as_slice();
+        let public_key = UnparsedPublicKey::new(&signature::ED25519, pub_slice);
+
+        let verify = public_key.verify(msg.as_bytes(), hex::decode(&self.signature)
+        .expect("Failed to parse signature").as_slice());
 
         match verify {
-            Ok(_) => true,
-            Err(_) => false
+            Ok(_) => {return true;},
+            Err(_) => {return false;}
         }
     }
 }
